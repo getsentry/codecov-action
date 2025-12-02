@@ -1,0 +1,18 @@
+on:
+  push:
+    branches:
+      - main
+jobs:
+  test_job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Hello world action step
+        id: hello
+        uses: ./ # TODO: later remove this with the public address
+        with:
+          who-to-greet: sentry
+
+      # Use the output from the `hello` step
+      - name: Get the output time
+        run: echo "The time was ${{ steps.hello.outputs.time }}"
