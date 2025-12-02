@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Hello world action step
         id: hello
         uses: ./ # TODO: later remove this with the public address
