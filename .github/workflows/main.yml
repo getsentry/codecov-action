@@ -36,4 +36,4 @@ jobs:
 
       # Use the output from the `analysis` step
       - name: Get the output time
-        run: echo "The time was ${{ steps.analysis.outputs.time }}"
+        run: echo "${{ steps.analysis.outputs }}"
