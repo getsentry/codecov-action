@@ -12,7 +12,7 @@ export class FileFinder {
     try {
       core.info(`Searching for files matching pattern: ${pattern}`);
 
-      const globber = await glob.create("*", {
+      const globber = await glob.create(pattern, {
         followSymbolicLinks: false,
       });
 

@@ -32204,7 +32204,7 @@ class FileFinder {
     async findFiles(pattern) {
         try {
             coreExports.info(`Searching for files matching pattern: ${pattern}`);
-            const globber = await globExports.create("*", {
+            const globber = await globExports.create(pattern, {
                 followSymbolicLinks: false,
             });
             const files = await globber.glob();
@@ -36309,7 +36309,7 @@ async function run() {
     try {
         coreExports.info("🚀 Starting Codecov Action - Test Results Reporter");
         // Get inputs
-        const junitPattern = coreExports.getInput("junit-xml-pattern") || "**/junit.xml";
+        const junitPattern = coreExports.getInput("junit-xml-pattern") || "./**/*.junit.xml";
         const token = coreExports.getInput("token");
         if (!token) {
             throw new Error("GitHub token is required. Please provide 'token' input.");
