@@ -99,7 +99,7 @@ async function run() {
     core.info(`  Pass Rate: ${aggregatedResults.passRate}%`);
 
     // Upload current results as artifact
-    const artifactManager = new ArtifactManager();
+    const artifactManager = new ArtifactManager(token);
     const currentBranch = ArtifactManager.getCurrentBranch();
     core.info(`Current branch: ${currentBranch}`);
     await artifactManager.uploadResults(aggregatedResults, currentBranch);
