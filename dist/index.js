@@ -28,6 +28,7 @@ import require$$0$9 from 'diagnostics_channel';
 import require$$2$3 from 'child_process';
 import require$$6$1 from 'timers';
 import * as fs from 'node:fs';
+import fs__default from 'node:fs';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -29673,7 +29674,9 @@ class JUnitParser {
             }
         }
         const passedTests = totalTests - failedTests - skippedTests;
-        const passRate = totalTests > 0 ? Number(((passedTests / totalTests) * 100).toFixed(2)) : 0;
+        const passRate = totalTests > 0
+            ? Number(((passedTests / totalTests) * 100).toFixed(2))
+            : 0;
         return {
             totalTests,
             passedTests,
@@ -32201,6 +32204,7 @@ class FileFinder {
     async findFiles(pattern) {
         try {
             coreExports.info(`Searching for files matching pattern: ${pattern}`);
+            coreExports.info(`DIRECTORY: ${process.cwd()}`);
             const globber = await globExports.create(pattern, {
                 followSymbolicLinks: false,
             });
@@ -32230,9 +32234,7 @@ class FileFinder {
         const validFiles = [];
         for (const file of files) {
             try {
-                // Check if file exists and is readable by attempting to access it
-                const fs = require("node:fs");
-                fs.accessSync(file, fs.constants.R_OK);
+                fs__default.accessSync(file, fs__default.constants.R_OK);
                 validFiles.push(file);
             }
             catch (error) {
@@ -36308,7 +36310,7 @@ async function run() {
     try {
         coreExports.info("🚀 Starting Codecov Action - Test Results Reporter");
         // Get inputs
-        const junitPattern = coreExports.getInput("junit-xml-pattern") || "**/junit*.xml";
+        const junitPattern = coreExports.getInput("junit-xml-pattern") || "**/junit.xml";
         const token = coreExports.getInput("token");
         if (!token) {
             throw new Error("GitHub token is required. Please provide 'token' input.");
