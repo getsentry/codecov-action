@@ -12,6 +12,8 @@ export class FileFinder {
     try {
       core.info(`Searching for files matching pattern: ${pattern}`);
 
+      core.info(`DIRECTORY: ${process.cwd()}`);
+
       const globber = await glob.create(pattern, {
         followSymbolicLinks: false,
       });
