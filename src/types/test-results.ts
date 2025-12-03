@@ -32,6 +32,28 @@ export interface TestResults {
   testsuites: TestSuite[];
 }
 
+export interface TestIdentifier {
+  suiteName: string;
+  classname: string;
+  testName: string;
+}
+
+export interface TestChange {
+  identifier: TestIdentifier;
+  testCase: TestCase;
+}
+
+export interface TestComparison {
+  testsAdded: TestChange[];
+  testsRemoved: TestChange[];
+  testsBroken: TestChange[]; // Changed from passing to failing
+  testsFixed: TestChange[]; // Changed from failing to passing
+  deltaTotal: number;
+  deltaPassed: number;
+  deltaFailed: number;
+  deltaSkipped: number;
+}
+
 export interface AggregatedTestResults {
   totalTests: number;
   passedTests: number;
@@ -43,4 +65,5 @@ export interface AggregatedTestResults {
     suiteName: string;
     testCase: TestCase;
   }>;
+  comparison?: TestComparison;
 }

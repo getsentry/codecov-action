@@ -9,6 +9,10 @@ inputs:
   token:
     description: GitHub token for posting PR comments
     required: true
+  base-branch:
+    description: Base branch to compare test results against
+    required: false
+    default: 'main'
 
 outputs:
   total-tests:
@@ -19,6 +23,14 @@ outputs:
     description: Number of failed tests
   test-pass-rate:
     description: Percentage of tests that passed
+  tests-added:
+    description: Number of tests added compared to base branch
+  tests-removed:
+    description: Number of tests removed compared to base branch
+  tests-fixed:
+    description: Number of tests that changed from failing to passing
+  tests-broken:
+    description: Number of tests that changed from passing to failing
 
 runs:
   using: node20

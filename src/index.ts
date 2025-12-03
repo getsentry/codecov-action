@@ -2,6 +2,8 @@ import * as core from "@actions/core";
 import { PRCommentFormatter } from "./formatters/pr-comment-formatter.js";
 import { JUnitParser } from "./parsers/junit-parser.js";
 import type { TestResults } from "./types/test-results.js";
+import { ArtifactManager } from "./utils/artifact-manager.js";
+import { TestResultsComparator } from "./utils/comparison.js";
 import { FileFinder } from "./utils/file-finder.js";
 import { GitHubClient } from "./utils/github-client.js";
 
@@ -13,6 +15,7 @@ async function run() {
     const junitPattern =
       core.getInput("junit-xml-pattern") || "./**/*.junit.xml";
     const token = core.getInput("token");
+    const baseBranch = core.getInput("base-branch") || "main";
 
     if (!token) {
       throw new Error(
@@ -21,6 +24,7 @@ async function run() {
     }
 
     core.info(`JUnit XML pattern: ${junitPattern}`);
+    core.info(`Base branch for comparison: ${baseBranch}`);
 
     // Initialize GitHub client
     const githubClient = new GitHubClient(token);
@@ -93,6 +97,61 @@ async function run() {
     core.info(`  Failed: ${aggregatedResults.failedTests}`);
     core.info(`  Skipped: ${aggregatedResults.skippedTests}`);
     core.info(`  Pass Rate: ${aggregatedResults.passRate}%`);
+
+    // Upload current results as artifact
+    const artifactManager = new ArtifactManager();
+    const currentBranch = ArtifactManager.getCurrentBranch();
+    core.info(`Current branch: ${currentBranch}`);
+    await artifactManager.uploadResults(aggregatedResults, currentBranch);
+
+    // Download and compare with base branch results
+    const baseResults = await artifactManager.downloadBaseResults(baseBranch);
+    if (baseResults) {
+      core.info("🔍 Comparing with base branch results...");
+      const comparison = TestResultsComparator.compareResults(
+        baseResults,
+        aggregatedResults
+      );
+      aggregatedResults.comparison = comparison;
+
+      // Log comparison summary
+      core.info("📈 Comparison Summary:");
+      core.info(
+        `  Total Tests: ${comparison.deltaTotal >= 0 ? "+" : ""}${
+          comparison.deltaTotal
+        }`
+      );
+      core.info(
+        `  Passed Tests: ${comparison.deltaPassed >= 0 ? "+" : ""}${
+          comparison.deltaPassed
+        }`
+      );
+      core.info(
+        `  Failed Tests: ${comparison.deltaFailed >= 0 ? "+" : ""}${
+          comparison.deltaFailed
+        }`
+      );
+      core.info(`  Tests Added: ${comparison.testsAdded.length}`);
+      core.info(`  Tests Removed: ${comparison.testsRemoved.length}`);
+      core.info(`  Tests Fixed: ${comparison.testsFixed.length}`);
+      core.info(`  Tests Broken: ${comparison.testsBroken.length}`);
+
+      // Set comparison outputs
+      core.setOutput("tests-added", comparison.testsAdded.length.toString());
+      core.setOutput(
+        "tests-removed",
+        comparison.testsRemoved.length.toString()
+      );
+      core.setOutput("tests-fixed", comparison.testsFixed.length.toString());
+      core.setOutput("tests-broken", comparison.testsBroken.length.toString());
+    } else {
+      core.info("ℹ️ No base results available for comparison");
+      // Set comparison outputs to 0
+      core.setOutput("tests-added", "0");
+      core.setOutput("tests-removed", "0");
+      core.setOutput("tests-fixed", "0");
+      core.setOutput("tests-broken", "0");
+    }
 
     // Set outputs
     core.setOutput("total-tests", aggregatedResults.totalTests.toString());
