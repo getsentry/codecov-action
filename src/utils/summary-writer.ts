@@ -192,7 +192,7 @@ async function addCoverageSection(
     summary.addRaw("\n");
   }
 
-  // Files with missing lines (top 10 visible, rest collapsed)
+  // Files with missing lines (all in one table)
   const filesWithMissing = results.files
     .filter((f) => (f.missingLines?.length || 0) > 0 || (f.partialLines?.length || 0) > 0)
     .sort((a, b) => {
@@ -204,10 +204,6 @@ async function addCoverageSection(
   if (filesWithMissing.length > 0) {
     summary.addHeading("Files with missing lines", 3);
 
-    // Build visible table (top 10 files)
-    const visibleFiles = filesWithMissing.slice(0, 10);
-    const remainingFiles = filesWithMissing.slice(10);
-
     const tableData: Array<Array<string | { data: string; header: boolean }>> = [
       [
         { data: "File", header: true },
@@ -216,7 +212,7 @@ async function addCoverageSection(
       ],
     ];
 
-    for (const file of visibleFiles) {
+    for (const file of filesWithMissing) {
       const fileName = getFileName(file.path);
       const missingCount = file.missingLines?.length || 0;
       const partialCount = file.partialLines?.length || 0;
@@ -234,32 +230,6 @@ async function addCoverageSection(
     }
 
     summary.addTable(tableData);
-
-    // Remaining files in collapsed section
-    if (remainingFiles.length > 0) {
-      const remainingRows = remainingFiles.map((file) => {
-        const fileName = getFileName(file.path);
-        const missingCount = file.missingLines?.length || 0;
-        const partialCount = file.partialLines?.length || 0;
-
-        let linesText = "";
-        if (missingCount > 0 && partialCount > 0) {
-          linesText = `⚠️ ${missingCount} Missing and ${partialCount} partials`;
-        } else if (missingCount > 0) {
-          linesText = `⚠️ ${missingCount} Missing`;
-        } else if (partialCount > 0) {
-          linesText = `⚠️ ${partialCount} partials`;
-        }
-
-        return `| \`${fileName}\` | ${file.lineRate.toFixed(2)}% | ${linesText} |`;
-      });
-
-      const remainingTable = `| File | Patch % | Lines |\n|------|---------|-------|\n${remainingRows.join("\n")}`;
-      summary.addDetails(
-        `${remainingFiles.length} more files with missing coverage`,
-        remainingTable
-      );
-    }
   }
 
   // Coverage diff in diff code block format

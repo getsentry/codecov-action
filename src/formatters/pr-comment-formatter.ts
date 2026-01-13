@@ -270,11 +270,7 @@ export class PRCommentFormatter {
       lines.push("| File | Patch % | Lines |");
       lines.push("|------|---------|-------|");
 
-      // Top 10 files visible
-      const visibleFiles = filesWithMissing.slice(0, 10);
-      const remainingFiles = filesWithMissing.slice(10);
-
-      for (const file of visibleFiles) {
+      for (const file of filesWithMissing) {
         const fileName = this.getFileName(file.path);
         const missingCount = file.missingLines?.length || 0;
         const partialCount = file.partialLines?.length || 0;
@@ -292,36 +288,6 @@ export class PRCommentFormatter {
       }
 
       lines.push("");
-
-      // Remaining files in collapsed section
-      if (remainingFiles.length > 0) {
-        lines.push("<details>");
-        lines.push(`<summary>${remainingFiles.length} more files with missing coverage</summary>`);
-        lines.push("");
-        lines.push("| File | Patch % | Lines |");
-        lines.push("|------|---------|-------|");
-
-        for (const file of remainingFiles) {
-          const fileName = this.getFileName(file.path);
-          const missingCount = file.missingLines?.length || 0;
-          const partialCount = file.partialLines?.length || 0;
-
-          let linesText = "";
-          if (missingCount > 0 && partialCount > 0) {
-            linesText = `:warning: ${missingCount} Missing and ${partialCount} partials`;
-          } else if (missingCount > 0) {
-            linesText = `:warning: ${missingCount} Missing`;
-          } else if (partialCount > 0) {
-            linesText = `:warning: ${partialCount} partials`;
-          }
-
-          lines.push(`| \`${fileName}\` | ${file.lineRate.toFixed(2)}% | ${linesText} |`);
-        }
-
-        lines.push("");
-        lines.push("</details>");
-        lines.push("");
-      }
     }
 
     // Coverage diff (collapsible)
