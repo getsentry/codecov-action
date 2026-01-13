@@ -1,15 +1,5 @@
 # Codecov Action
 
-A GitHub Action for test results and code coverage reporting with **multi-format support**. Works with 30+ languages including JavaScript/TypeScript, Python, Java, Go, Ruby, C/C++, and more.
-
-## Features
-
-- **Multi-format support**: Auto-detects Clover, Cobertura, JaCoCo, LCOV, Istanbul JSON, and Go coverage formats
-- **No external service required**: Uses GitHub Artifacts for storage and comparison
-- **PR comments**: Optional coverage diff comments on pull requests
-- **Coverage gates**: Use outputs to enforce coverage thresholds
-- **Codecov-style configuration**: Familiar API for easy migration
-
 ## Quick Start
 
 ```yaml
@@ -350,11 +340,6 @@ If you're migrating from the official Codecov action:
 
 | Codecov Input | This Action |
 |---------------|-------------|
-| `files` | `files` |
-| `directory` | `directory` |
-| `flags` | `flags` |
-| `name` | `name` |
 | `fail_ci_if_error` | `fail-ci-if-error` |
-| `verbose` | `verbose` |
 
 **Note**: This action doesn't require a Codecov token—it uses GitHub's native artifacts for storage.
