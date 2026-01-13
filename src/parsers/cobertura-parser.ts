@@ -145,9 +145,10 @@ export class CoberturaParser extends BaseCoverageParser {
     let conditionals = 0;
     let coveredConditionals = 0;
 
-    for (const line of classLines) {
-      const lineNum = Number.parseInt(line.number || "0", 10);
-      const hits = Number.parseInt(line.hits || "0", 10);
+    for (const lineData of classLines) {
+      const line = lineData as Record<string, unknown>;
+      const lineNum = Number.parseInt((line.number as string) || "0", 10);
+      const hits = Number.parseInt((line.hits as string) || "0", 10);
       const isBranch = line.branch === "true" || line.branch === true;
 
       statements++;
@@ -190,13 +191,15 @@ export class CoberturaParser extends BaseCoverageParser {
     let methodCount = methods.length;
     let coveredMethodCount = 0;
 
-    for (const method of methods) {
+    for (const methodData of methods) {
+      const method = methodData as Record<string, unknown>;
       const methodLines = this.ensureArray(
         (method.lines as Record<string, unknown>)?.line
       );
-      const hasHits = methodLines.some(
-        (l: Record<string, unknown>) => Number.parseInt(l.hits as string, 10) > 0
-      );
+      const hasHits = methodLines.some((l) => {
+        const lineObj = l as Record<string, unknown>;
+        return Number.parseInt((lineObj.hits as string) || "0", 10) > 0;
+      });
       if (hasHits) {
         coveredMethodCount++;
       }
@@ -221,13 +224,5 @@ export class CoberturaParser extends BaseCoverageParser {
       branchRate: this.calculateRate(coveredConditionals, conditionals),
       lines,
     };
-  }
-
-  /**
-   * Ensure value is an array
-   */
-  private ensureArray<T>(value: T | T[] | undefined): T[] {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
   }
 }

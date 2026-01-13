@@ -360,6 +360,9 @@ async function findCoverageFiles(config: CoverageConfig): Promise<string[]> {
   // Check for legacy coverage-xml-pattern input
   const legacyPattern = core.getInput("coverage-xml-pattern");
   if (legacyPattern) {
+    core.warning(
+      "The 'coverage-xml-pattern' input is deprecated. Please use 'files' or 'directory' instead."
+    );
     verboseLog(`Using legacy coverage-xml-pattern: ${legacyPattern}`, verbose);
     const globber = await glob.create(legacyPattern, {
       followSymbolicLinks: false,
@@ -414,23 +417,18 @@ async function processCoverage(
 
   if (files.length === 0) {
     const message = "No coverage files found";
-    if (handleNoReportsFound) {
-      core.warning(message);
-      core.setOutput("line-coverage", "0");
-      core.setOutput("branch-coverage", "0");
-      core.setOutput("coverage-change", "0");
-      core.setOutput("coverage-format", "none");
-      return null;
-    }
-    if (failCiIfError) {
+    if (failCiIfError && !handleNoReportsFound) {
       throw new Error(message);
     }
     core.warning(message);
-    core.warning(
-      `Supported formats: ${CoverageParserFactory.getSupportedFormats().join(
-        ", "
-      )}`
-    );
+    if (!handleNoReportsFound) {
+      core.warning(
+        `Supported formats: ${CoverageParserFactory.getSupportedFormats().join(
+          ", "
+        )}`
+      );
+    }
+    // Set default outputs for no reports case
     core.setOutput("line-coverage", "0");
     core.setOutput("branch-coverage", "0");
     core.setOutput("coverage-change", "0");
@@ -455,7 +453,7 @@ async function processCoverage(
 
   // Parse all coverage files
   const allResults: CoverageResults[] = [];
-  let detectedFormat: CoverageFormat | "none" = "none";
+  let detectedFormat: CoverageFormat | null = null;
 
   for (const file of validFiles) {
     try {
@@ -463,6 +461,24 @@ async function processCoverage(
 
       // Read file once and use for both parsing and format detection
       const content = fs.readFileSync(file, "utf-8");
+
+      // Determine the format to use and log
+      let fileFormat: CoverageFormat | "auto" = format;
+      if (format === "auto") {
+        const parser = CoverageParserFactory.detectParser(content, file);
+        if (parser) {
+          fileFormat = parser.format;
+          if (detectedFormat === null) {
+            detectedFormat = parser.format;
+          }
+        }
+      } else {
+        // When explicit format is provided, use it for tracking
+        if (detectedFormat === null) {
+          detectedFormat = format;
+        }
+      }
+
       const result = await CoverageParserFactory.parseContent(
         content,
         file,
@@ -470,13 +486,7 @@ async function processCoverage(
       );
       allResults.push(result);
 
-      // Track detected format using the already-read content
-      const parser = CoverageParserFactory.detectParser(content, file);
-      if (parser && detectedFormat === "none") {
-        detectedFormat = parser.format;
-      }
-
-      core.info(`✓ Parsed ${file} (${parser?.format || format})`);
+      core.info(`✓ Parsed ${file} (${fileFormat})`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       if (failCiIfError) {
@@ -500,7 +510,7 @@ async function processCoverage(
   const aggregatedResults = CoverageParserFactory.aggregateResults(allResults);
 
   core.info("🎯 Coverage Summary:");
-  core.info(`  Format: ${detectedFormat}`);
+  core.info(`  Format: ${detectedFormat ?? "unknown"}`);
   core.info(`  Line Coverage: ${aggregatedResults.lineRate}%`);
   core.info(`  Branch Coverage: ${aggregatedResults.branchRate}%`);
   core.info(
@@ -564,7 +574,7 @@ async function processCoverage(
   // Set outputs
   core.setOutput("line-coverage", aggregatedResults.lineRate.toString());
   core.setOutput("branch-coverage", aggregatedResults.branchRate.toString());
-  core.setOutput("coverage-format", detectedFormat);
+  core.setOutput("coverage-format", detectedFormat ?? "unknown");
 
   return aggregatedResults;
 }

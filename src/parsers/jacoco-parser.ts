@@ -90,7 +90,9 @@ export class JaCoCoParser extends BaseCoverageParser {
     }
 
     // Get report-level counters
-    const reportCounters = this.parseCounters(this.ensureArray(report.counter));
+    const reportCounters = this.parseCounters(
+      this.ensureArray(report.counter) as Array<Record<string, unknown>>
+    );
 
     const metrics: CoverageMetrics = {
       statements: reportCounters.line.total,
@@ -134,11 +136,15 @@ export class JaCoCoParser extends BaseCoverageParser {
     const lines: LineCoverage[] = [];
     const sourceLines = this.ensureArray(sourceFile.line);
 
-    for (const line of sourceLines) {
-      const lineNum = Number.parseInt(line.nr || "0", 10);
-      const coveredInstructions = Number.parseInt(line.ci || "0", 10);
-      const missedBranches = Number.parseInt(line.mb || "0", 10);
-      const coveredBranches = Number.parseInt(line.cb || "0", 10);
+    for (const lineData of sourceLines) {
+      const line = lineData as Record<string, unknown>;
+      const lineNum = Number.parseInt((line.nr as string) || "0", 10);
+      const coveredInstructions = Number.parseInt(
+        (line.ci as string) || "0",
+        10
+      );
+      const missedBranches = Number.parseInt((line.mb as string) || "0", 10);
+      const coveredBranches = Number.parseInt((line.cb as string) || "0", 10);
 
       const hasBranches = missedBranches > 0 || coveredBranches > 0;
       const isCovered = coveredInstructions > 0;
@@ -156,7 +162,9 @@ export class JaCoCoParser extends BaseCoverageParser {
     lines.sort((a, b) => a.lineNumber - b.lineNumber);
 
     // Parse counters for this source file
-    const counters = this.parseCounters(this.ensureArray(sourceFile.counter));
+    const counters = this.parseCounters(
+      this.ensureArray(sourceFile.counter) as Array<Record<string, unknown>>
+    );
 
     return {
       name: fileName,
@@ -212,13 +220,5 @@ export class JaCoCoParser extends BaseCoverageParser {
     }
 
     return result;
-  }
-
-  /**
-   * Ensure value is an array
-   */
-  private ensureArray<T>(value: T | T[] | undefined): T[] {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
   }
 }

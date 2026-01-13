@@ -30,7 +30,7 @@ jobs:
 | Format | File Patterns | Languages/Tools |
 |--------|--------------|-----------------|
 | **Clover XML** | `clover.xml` | Istanbul/NYC (JS/TS), PHPUnit, OpenClover |
-| **Cobertura XML** | `coverage.xml`, `cobertura.xml` | coverage.py (Python), Coverlet (.NET), Java |
+| **Cobertura XML** | `coverage.xml`, `cobertura.xml` | coverage.py (Python), Coverlet (.NET), PHPUnit |
 | **JaCoCo XML** | `jacoco.xml` | Java, Kotlin, Scala |
 | **LCOV** | `lcov.info`, `*.lcov` | c8, lcov (C/C++), grcov (Rust), gcov |
 | **Istanbul JSON** | `coverage-final.json` | Jest, Vitest, NYC (JS/TS) |
@@ -341,5 +341,12 @@ If you're migrating from the official Codecov action:
 | Codecov Input | This Action |
 |---------------|-------------|
 | `fail_ci_if_error` | `fail-ci-if-error` |
+| `files` | `files` |
+| `directory` | `directory` |
+| `exclude` | `exclude` |
+| `flags` | `flags` |
+| `name` | `name` |
+| `verbose` | `verbose` |
+| `handle-no-reports-found` | `handle-no-reports-found` |
 
 **Note**: This action doesn't require a Codecov token—it uses GitHub's native artifacts for storage.

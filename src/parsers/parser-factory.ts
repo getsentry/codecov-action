@@ -1,13 +1,10 @@
-import * as fs from "node:fs";
+import * as fs from "node:fs/promises";
 import type {
   AggregatedCoverageResults,
   CoverageResults,
   FileCoverage,
 } from "../types/coverage.js";
-import {
-  type CoverageFormat,
-  type ICoverageParser,
-} from "./base-parser.js";
+import type { CoverageFormat, ICoverageParser } from "./base-parser.js";
 import { CloverParser } from "./clover-parser.js";
 import { CoberturaParser } from "./cobertura-parser.js";
 import { GoParser } from "./go-parser.js";
@@ -34,7 +31,9 @@ export class CoverageParserFactory {
    * @returns The parser for the specified format
    */
   static getParser(format: CoverageFormat): ICoverageParser {
-    const parser = this.parsers.find((p) => p.format === format);
+    const parser = CoverageParserFactory.parsers.find(
+      (p) => p.format === format
+    );
     if (!parser) {
       throw new Error(`Unsupported coverage format: ${format}`);
     }
@@ -51,12 +50,22 @@ export class CoverageParserFactory {
     content: string,
     filePath?: string
   ): ICoverageParser | null {
-    // Try each parser in order of specificity
-    for (const parser of this.parsers) {
+    // Try each parser in order of specificity (content-based detection)
+    for (const parser of CoverageParserFactory.parsers) {
       if (parser.canParse(content, filePath)) {
         return parser;
       }
     }
+
+    // Fallback to path-based detection if content detection fails
+    if (filePath) {
+      const formatFromPath =
+        CoverageParserFactory.detectFormatFromPath(filePath);
+      if (formatFromPath) {
+        return CoverageParserFactory.getParser(formatFromPath);
+      }
+    }
+
     return null;
   }
 
@@ -110,8 +119,8 @@ export class CoverageParserFactory {
     filePath: string,
     format?: CoverageFormat | "auto"
   ): Promise<CoverageResults> {
-    const content = fs.readFileSync(filePath, "utf-8");
-    return this.parseContent(content, filePath, format);
+    const content = await fs.readFile(filePath, "utf-8");
+    return CoverageParserFactory.parseContent(content, filePath, format);
   }
 
   /**
@@ -130,10 +139,10 @@ export class CoverageParserFactory {
 
     // Use explicit format if provided and not 'auto'
     if (format && format !== "auto") {
-      parser = this.getParser(format);
+      parser = CoverageParserFactory.getParser(format);
     } else {
       // Auto-detect
-      parser = this.detectParser(content, filePath);
+      parser = CoverageParserFactory.detectParser(content, filePath);
     }
 
     if (!parser) {
@@ -141,7 +150,9 @@ export class CoverageParserFactory {
       throw new Error(
         `Unable to detect coverage format${hint}. ` +
           "Please specify format explicitly or ensure the file is in a supported format. " +
-          `Supported formats: ${this.getSupportedFormats().join(", ")}`
+          `Supported formats: ${CoverageParserFactory.getSupportedFormats().join(
+            ", "
+          )}`
       );
     }
 
@@ -152,7 +163,7 @@ export class CoverageParserFactory {
    * Get list of supported format names
    */
   static getSupportedFormats(): CoverageFormat[] {
-    return this.parsers.map((p) => p.format);
+    return CoverageParserFactory.parsers.map((p) => p.format);
   }
 
   /**
@@ -211,7 +222,7 @@ export class CoverageParserFactory {
 /**
  * Re-export for convenience
  */
-export { type CoverageFormat, type ICoverageParser } from "./base-parser.js";
+export type { CoverageFormat, ICoverageParser } from "./base-parser.js";
 export { CloverParser } from "./clover-parser.js";
 export { CoberturaParser } from "./cobertura-parser.js";
 export { GoParser } from "./go-parser.js";

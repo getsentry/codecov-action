@@ -54,8 +54,8 @@ export abstract class BaseCoverageParser implements ICoverageParser {
   abstract canParse(content: string, filePath?: string): boolean;
 
   async parseFile(filePath: string): Promise<CoverageResults> {
-    const fs = await import("node:fs");
-    const content = fs.readFileSync(filePath, "utf-8");
+    const fs = await import("node:fs/promises");
+    const content = await fs.readFile(filePath, "utf-8");
     return this.parseContent(content);
   }
 
@@ -73,5 +73,13 @@ export abstract class BaseCoverageParser implements ICoverageParser {
   protected getFileExtension(filePath: string): string {
     const parts = filePath.split(".");
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
+  }
+
+  /**
+   * Helper to ensure value is an array
+   */
+  protected ensureArray<T>(value: T | T[] | undefined): T[] {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
   }
 }
