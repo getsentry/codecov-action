@@ -7,11 +7,11 @@ import type {
   TestComparison,
 } from "../types/test-results.js";
 
-export class PRCommentFormatter {
+export class ReportFormatter {
   /**
-   * Format test results and coverage as a markdown comment for PRs
+   * Format test results and coverage as a markdown report
    */
-  formatComment(
+  formatReport(
     testResults?: AggregatedTestResults,
     coverageResults?: AggregatedCoverageResults
   ): string {
@@ -39,9 +39,9 @@ export class PRCommentFormatter {
   }
 
   /**
-   * Format only test results as a markdown comment for PRs (backward compatibility)
+   * Format only test results as a markdown report (backward compatibility)
    */
-  formatTestComment(results: AggregatedTestResults): string {
+  formatTestReport(results: AggregatedTestResults): string {
     const lines: string[] = [];
 
     // Summary line with emoji indicators
@@ -122,7 +122,7 @@ export class PRCommentFormatter {
   }
 
   /**
-   * Add test results section to the comment
+   * Add test results section to the report
    */
   private addTestResultsSection(
     lines: string[],
@@ -208,7 +208,7 @@ export class PRCommentFormatter {
   }
 
   /**
-   * Add coverage section to the comment (Codecov-style format with icons)
+   * Add coverage section to the report (Codecov-style format with icons)
    */
   private addCoverageSection(
     lines: string[],
@@ -632,7 +632,7 @@ export class PRCommentFormatter {
   }
 
   /**
-   * Add comparison section to the comment
+   * Add comparison section to the report
    */
   private addComparisonSection(
     lines: string[],
@@ -818,6 +818,6 @@ export class PRCommentFormatter {
    * Add identifier to comment body
    */
   addIdentifier(comment: string): string {
-    return `${PRCommentFormatter.getCommentIdentifier()}\n${comment}`;
+    return `${ReportFormatter.getCommentIdentifier()}\n${comment}`;
   }
 }

@@ -5,7 +5,7 @@ import * as glob from "@actions/glob";
 import { PatchAnalyzer } from "./analyzers/patch-analyzer.js";
 import { ThresholdChecker } from "./analyzers/threshold-checker.js";
 import { ConfigLoader } from "./config/config-loader.js";
-import { PRCommentFormatter } from "./formatters/pr-comment-formatter.js";
+import { ReportFormatter } from "./formatters/report-formatter.js";
 import { JUnitParser } from "./parsers/junit-parser.js";
 import {
   type CoverageFormat,
@@ -20,7 +20,6 @@ import { TestResultsComparator } from "./utils/comparison.js";
 import { CoverageComparator } from "./utils/coverage-comparison.js";
 import { FileFinder } from "./utils/file-finder.js";
 import { GitHubClient } from "./utils/github-client.js";
-import { writeJobSummary } from "./utils/summary-writer.js";
 
 /**
  * Coverage input configuration
@@ -320,23 +319,21 @@ async function run() {
       }
     }
 
-    // Write Job Summary (always)
-    core.info("📝 Writing Job Summary...");
-    await writeJobSummary(
+    // Generate report using the formatter
+    const formatter = new ReportFormatter();
+    const reportBody = formatter.formatReport(
       aggregatedTestResults || undefined,
       aggregatedCoverageResults || undefined
     );
 
+    // Write Job Summary (always)
+    core.info("📝 Writing Job Summary...");
+    await core.summary.addRaw(reportBody).write();
+
     // Optionally post PR comment if enabled and in PR context
     if (postPrComment && githubClient.isPullRequest()) {
-      const formatter = new PRCommentFormatter();
-      const commentBody = formatter.formatComment(
-        aggregatedTestResults || undefined,
-        aggregatedCoverageResults || undefined
-      );
-
       core.info("📝 Posting results to PR comment...");
-      await githubClient.postOrUpdateComment(commentBody);
+      await githubClient.postOrUpdateComment(reportBody);
     }
 
     core.info("✅ Codecov Action completed successfully!");
