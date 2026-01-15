@@ -44,10 +44,6 @@ export class PRCommentFormatter {
   formatTestComment(results: AggregatedTestResults): string {
     const lines: string[] = [];
 
-    // Header
-    lines.push("## Test Results 🧪");
-    lines.push("");
-
     // Summary line with emoji indicators
     const passEmoji = results.passedTests > 0 ? "✅" : "";
     const failEmoji = results.failedTests > 0 ? "❌" : "";
@@ -68,12 +64,11 @@ export class PRCommentFormatter {
     // Add total and pass rate
     summaryParts.push(`**Total: ${results.totalTests}**`);
     summaryParts.push(`**Pass Rate: ${results.passRate}%**`);
+    summaryParts.push(
+      `⏱️ **Execution Time: ${this.formatTime(results.totalTime)}**`
+    );
 
     lines.push(summaryParts.join(" | "));
-    lines.push("");
-
-    // Execution time
-    lines.push(`⏱️ **Execution Time:** ${this.formatTime(results.totalTime)}`);
     lines.push("");
 
     // Add comparison section if available
@@ -115,9 +110,7 @@ export class PRCommentFormatter {
       }
     } else if (results.failedTests === 0) {
       // Success message
-      lines.push("### ✅ All Tests Passed!");
-      lines.push("");
-      lines.push("Great job! All tests are passing successfully.");
+      lines.push("All tests are passing successfully.");
       lines.push("");
     }
 
