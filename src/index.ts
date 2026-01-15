@@ -236,14 +236,8 @@ async function run() {
             );
 
             // Enrich aggregated results with patch coverage for the formatter
-            // (Wait, we need to update AggregatedCoverageResults type or pass it separately)
-            // For now, let's update the files in aggregatedCoverageResults with their specific patch stats
-            // The analyzer already returns a breakdown which we can use
-
-            // Update the results with patch info for the formatter to use
-            // This is a bit of a hack until we update the types officially,
-            // but the formatter currently looks at file.missingLines which is generic.
-            // We should ideally pass the patch stats to the formatter separately.
+            aggregatedCoverageResults.patchCoverageRate =
+              patchCoverage.percentage;
           } catch (error) {
             core.warning(`Failed to calculate patch coverage: ${error}`);
           }
@@ -296,7 +290,7 @@ async function run() {
         };
 
         // If we have real patch coverage data, use it for the check
-        let patchStatus;
+        let patchStatus: { status: "success" | "failure"; description: string };
         if (patchCoverage) {
           // Create a temporary object that matches what checkPatchStatus expects
           // or update checkPatchStatus to accept PatchCoverageResults

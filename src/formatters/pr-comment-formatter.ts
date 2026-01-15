@@ -216,16 +216,19 @@ export class PRCommentFormatter {
   ): void {
     // Calculate metrics
     const totalMissing = results.totalMisses || 0;
+    // Use explicit patch coverage if available, otherwise fallback to lineRate (legacy/project)
+    const patchRate =
+      results.patchCoverageRate !== undefined
+        ? results.patchCoverageRate.toFixed(2)
+        : results.lineRate.toFixed(2);
 
     // Line 1: Patch coverage with missing lines
     if (totalMissing > 0) {
       lines.push(
-        `:x: Patch coverage is **${results.lineRate}%** with **${totalMissing} lines** missing coverage.`
+        `:x: Patch coverage is **${patchRate}%** with **${totalMissing} lines** missing coverage.`
       );
     } else {
-      lines.push(
-        `:white_check_mark: Patch coverage is **${results.lineRate}%**.`
-      );
+      lines.push(`:white_check_mark: Patch coverage is **${patchRate}%**.`);
     }
 
     // Line 2: Project coverage with comparison info
@@ -730,7 +733,8 @@ export class PRCommentFormatter {
       comparison.testsBroken.length === 0 &&
       comparison.testsFixed.length === 0 &&
       comparison.testsAdded.length === 0 &&
-      comparison.testsRemoved.length === 0
+      comparison.testsRemoved.length === 0 &&
+      comparison.deltaTotal === 0
     ) {
       lines.push("✨ No test changes detected");
       lines.push("");
