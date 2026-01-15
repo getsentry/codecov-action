@@ -337,11 +337,13 @@ export class ReportFormatter {
     lines.push("==========================================");
 
     // Coverage line (green if improved)
-    const baseCoverage =
-      (results.lineRate - comparison.deltaLineRate).toFixed(2) + "%";
-    const currentCoverage = results.lineRate.toFixed(2) + "%";
-    const coverageDelta =
-      this.formatDeltaSimple(comparison.deltaLineRate) + "%";
+    const baseCoverage = `${(
+      results.lineRate - comparison.deltaLineRate
+    ).toFixed(2)}%`;
+    const currentCoverage = `${results.lineRate.toFixed(2)}%`;
+    const coverageDelta = `${this.formatDeltaSimple(
+      comparison.deltaLineRate
+    )}%`;
     const coveragePrefix = comparison.deltaLineRate >= 0 ? "+" : "-";
     lines.push(
       `${coveragePrefix} Coverage${this.padCol(baseCoverage, 10)}${this.padCol(
@@ -463,172 +465,12 @@ export class ReportFormatter {
   }
 
   /**
-   * Truncate file name for display
-   */
-  private truncateFileName(path: string, maxLength: number): string {
-    if (path.length <= maxLength) return path;
-    return `...${path.slice(-(maxLength - 3))}`;
-  }
-
-  /**
    * Format delta value with sign only (no emoji)
    */
   private formatDeltaSimple(delta: number): string {
     if (delta === 0) return "—";
     const sign = delta > 0 ? "+" : "";
     return `${sign}${delta}`;
-  }
-
-  /**
-   * Add coverage comparison section
-   */
-  private addCoverageComparisonSection(
-    lines: string[],
-    comparison: CoverageComparison
-  ): void {
-    lines.push("### 📊 Coverage Change from Base Branch");
-    lines.push("");
-
-    // Improvement or degradation indicator
-    if (comparison.improvement) {
-      lines.push("#### 📈 Coverage Improved!");
-    } else if (comparison.deltaLineRate < 0 || comparison.deltaBranchRate < 0) {
-      lines.push("#### 📉 Coverage Decreased");
-    } else {
-      lines.push("#### ➡️ Coverage Unchanged");
-    }
-    lines.push("");
-
-    // Summary table
-    lines.push("| Metric | Change |");
-    lines.push("|--------|--------|");
-    lines.push(
-      `| Line Coverage | ${this.formatCoverageDelta(
-        comparison.deltaLineRate
-      )}% |`
-    );
-    lines.push(
-      `| Branch Coverage | ${this.formatCoverageDelta(
-        comparison.deltaBranchRate
-      )}% |`
-    );
-    lines.push(
-      `| Total Statements | ${this.formatDelta(
-        comparison.deltaTotalStatements
-      )} |`
-    );
-    lines.push(
-      `| Covered Statements | ${this.formatDelta(
-        comparison.deltaCoveredStatements
-      )} |`
-    );
-    lines.push("");
-
-    // Files with significant coverage changes
-    const significantChanges = comparison.filesChanged.filter(
-      (f) => Math.abs(f.deltaLineRate) >= 5
-    );
-
-    if (significantChanges.length > 0) {
-      const improved = significantChanges.filter((f) => f.deltaLineRate > 0);
-      const degraded = significantChanges.filter((f) => f.deltaLineRate < 0);
-
-      if (degraded.length > 0) {
-        lines.push(
-          `#### 📉 Files with Decreased Coverage (${degraded.length})`
-        );
-        lines.push("");
-        lines.push("<details>");
-        lines.push("<summary>View files with decreased coverage</summary>");
-        lines.push("");
-        lines.push("| File | Line Coverage Change | Branch Coverage Change |");
-        lines.push("|------|---------------------|------------------------|");
-
-        for (const file of degraded.slice(0, 10)) {
-          const fileName =
-            file.name.length > 40 ? `...${file.name.slice(-37)}` : file.name;
-          lines.push(
-            `| \`${fileName}\` | ${this.formatCoverageDelta(
-              file.deltaLineRate
-            )}% (${file.baseLineRate}% → ${
-              file.currentLineRate
-            }%) | ${this.formatCoverageDelta(file.deltaBranchRate)}% |`
-          );
-        }
-
-        lines.push("");
-        lines.push("</details>");
-        lines.push("");
-      }
-
-      if (improved.length > 0) {
-        lines.push(`#### 📈 Files with Improved Coverage (${improved.length})`);
-        lines.push("");
-        lines.push("<details>");
-        lines.push("<summary>View files with improved coverage</summary>");
-        lines.push("");
-        lines.push("| File | Line Coverage Change | Branch Coverage Change |");
-        lines.push("|------|---------------------|------------------------|");
-
-        for (const file of improved.slice(0, 10)) {
-          const fileName =
-            file.name.length > 40 ? `...${file.name.slice(-37)}` : file.name;
-          lines.push(
-            `| \`${fileName}\` | ${this.formatCoverageDelta(
-              file.deltaLineRate
-            )}% (${file.baseLineRate}% → ${
-              file.currentLineRate
-            }%) | ${this.formatCoverageDelta(file.deltaBranchRate)}% |`
-          );
-        }
-
-        lines.push("");
-        lines.push("</details>");
-        lines.push("");
-      }
-    }
-
-    // New files
-    if (comparison.filesAdded.length > 0) {
-      lines.push(
-        `#### ➕ New Files with Coverage (${comparison.filesAdded.length})`
-      );
-      lines.push("");
-      lines.push("<details>");
-      lines.push("<summary>View new files</summary>");
-      lines.push("");
-      lines.push("| File | Line Coverage | Branch Coverage |");
-      lines.push("|------|---------------|-----------------|");
-
-      for (const file of comparison.filesAdded.slice(0, 10)) {
-        const fileName =
-          file.name.length > 40 ? `...${file.name.slice(-37)}` : file.name;
-        lines.push(
-          `| \`${fileName}\` | ${this.getCoverageEmoji(file.lineRate)} ${
-            file.lineRate
-          }% | ${this.getCoverageEmoji(file.branchRate)} ${file.branchRate}% |`
-        );
-      }
-
-      lines.push("");
-      lines.push("</details>");
-      lines.push("");
-    }
-
-    // Removed files
-    if (comparison.filesRemoved.length > 0) {
-      lines.push(`#### ➖ Removed Files (${comparison.filesRemoved.length})`);
-      lines.push("");
-      lines.push("<details>");
-      lines.push("<summary>View removed files</summary>");
-      lines.push("");
-      for (const file of comparison.filesRemoved.slice(0, 10)) {
-        lines.push(`- \`${file.name}\``);
-      }
-      lines.push("");
-      lines.push("</details>");
-      lines.push("");
-    }
   }
 
   /**
