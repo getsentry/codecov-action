@@ -66,6 +66,15 @@ jobs:
 | `handle-no-reports-found` | Don't fail if no coverage found | No | `false` |
 | `verbose` | Enable verbose logging | No | `false` |
 
+### Status Checks & Thresholds
+
+| Input | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `target-project` | Target project coverage % (or `auto` to use base branch coverage) | No | — |
+| `threshold-project` | Allowed project coverage drop % (only used when target is `auto`) | No | — |
+| `target-patch` | Target patch coverage % for changed lines | No | — |
+| `fail-on-error` | Fail CI if coverage thresholds are not met | No | `false` |
+
 ### Grouping & Identification
 
 | Input | Description | Required | Default |
@@ -230,6 +239,26 @@ jobs:
     exit 1
 ```
 
+### Coverage Thresholds with Status Checks
+
+Use built-in threshold enforcement with GitHub status checks:
+
+```yaml
+- name: Codecov Action
+  uses: mathuraditya724/codecov-action@v1
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    target-project: auto          # Use base branch coverage as target
+    threshold-project: 1          # Allow up to 1% coverage drop
+    target-patch: 80              # Require 80% coverage on changed lines
+    fail-on-error: true           # Fail CI if thresholds not met
+```
+
+This creates two status checks (`codecov/project` and `codecov/patch`) that:
+- Appear on commits and PRs
+- Can be required via branch protection rules
+- Provide clear pass/fail feedback
+
 ## How It Works
 
 ### 1. File Discovery
@@ -262,6 +291,28 @@ On PRs or feature branches:
 
 - **Job Summary**: Always generated in Actions UI
 - **PR Comment**: Optional detailed comment on PRs
+
+### 6. Status Checks
+
+The action creates GitHub commit status checks that appear on commits and PRs:
+
+| Status Context | Description |
+|----------------|-------------|
+| `codecov/project` | Overall project coverage status (pass/fail based on target) |
+| `codecov/patch` | Coverage for changed lines in the PR |
+
+These status checks:
+- Show as green checkmarks or red X marks on commits and PRs
+- Can be used in **branch protection rules** to require coverage thresholds
+- Provide immediate feedback on coverage quality
+
+### Status Badges
+
+Display your CI status in your README using GitHub's workflow badge:
+
+```markdown
+![CI](https://github.com/{owner}/{repo}/actions/workflows/{workflow}.yml/badge.svg)
+```
 
 ## Test Results
 
@@ -325,6 +376,31 @@ dotnet test --collect:"XPlat Code Coverage"
 dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
 ```
 
+## Configuration File
+
+You can configure status check thresholds using a `.github/coverage.yml` file in your repository:
+
+```yaml
+# .github/coverage.yml
+coverage:
+  status:
+    project:
+      target: 80        # Target coverage percentage (or "auto" to use base branch)
+      threshold: 1      # Allowed coverage drop when using "auto"
+    patch:
+      target: 90        # Target coverage for changed lines
+  ignore:
+    - "**/*.test.ts"    # Patterns to exclude from coverage
+    - "**/fixtures/**"
+```
+
+| Option | Description |
+|--------|-------------|
+| `status.project.target` | Target project coverage % (number or `"auto"`) |
+| `status.project.threshold` | Allowed drop from base branch when target is `"auto"` |
+| `status.patch.target` | Target coverage % for changed lines |
+| `ignore` | Glob patterns to exclude from coverage calculations |
+
 ## Permissions
 
 ```yaml
@@ -332,6 +408,7 @@ permissions:
   contents: read        # Read repository contents
   actions: read         # Read workflow runs and artifacts
   pull-requests: write  # Post PR comments (if enabled)
+  statuses: write       # Create commit status checks
 ```
 
 ## Migration from Codecov
