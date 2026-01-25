@@ -40,3 +40,5 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           post-pr-comment: true
+          target-patch: 80
+          fail-on-error: true
