@@ -2,6 +2,8 @@
 
 ![CI](https://github.com/getsentry/codecov-action/actions/workflows/main.yml/badge.svg)
 
+Self-hosted coverage and test reporting with GitHub Actions. Uses GitHub Artifacts for storage — no external service or Codecov token required.
+
 ## Quick Start
 
 ```yaml
@@ -22,7 +24,7 @@ jobs:
         run: npm test -- --coverage
       
       - name: Codecov Action
-        uses: mathuraditya724/codecov-action@v1
+        uses: getsentry/codecov-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -64,7 +66,7 @@ jobs:
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `fail-ci-if-error` | Exit with non-zero code on failure | No | `false` |
+| `fail-ci-if-error` | Fail if coverage processing errors (e.g., parsing failures, missing files) | No | `false` |
 | `handle-no-reports-found` | Don't fail if no coverage found | No | `false` |
 | `verbose` | Enable verbose logging | No | `false` |
 
@@ -74,8 +76,10 @@ jobs:
 |-------|-------------|----------|---------|
 | `target-project` | Target project coverage % (or `auto` to use base branch coverage) | No | — |
 | `threshold-project` | Allowed project coverage drop % (only used when target is `auto`) | No | — |
-| `target-patch` | Target patch coverage % for changed lines | No | — |
-| `fail-on-error` | Fail CI if coverage thresholds are not met | No | `false` |
+| `target-patch` | Target patch coverage % for changed lines | No | `80` |
+| `fail-on-error` | Fail CI if coverage thresholds are not met (distinct from `fail-ci-if-error`) | No | `false` |
+
+When thresholds are not configured, status checks report coverage metrics without enforcing pass/fail.
 
 ### Grouping & Identification
 
@@ -122,7 +126,7 @@ jobs:
 
 ```yaml
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -131,7 +135,7 @@ jobs:
 
 ```yaml
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     files: ./coverage/lcov.info,./backend/coverage.xml
@@ -148,7 +152,7 @@ jobs:
   run: pytest --cov=src --cov-report=xml
 
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     directory: ./
@@ -163,7 +167,7 @@ jobs:
   run: ./gradlew test jacocoTestReport
 
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     files: ./build/reports/jacoco/test/jacocoTestReport.xml
@@ -177,7 +181,7 @@ jobs:
   run: go test -coverprofile=coverage.out ./...
 
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     files: ./coverage.out
@@ -191,7 +195,7 @@ jobs:
   run: npm test -- --coverage --coverageReporters=lcov
 
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     directory: ./coverage
@@ -202,7 +206,7 @@ jobs:
 
 ```yaml
 - name: Frontend Coverage
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     directory: ./frontend/coverage
@@ -210,35 +214,12 @@ jobs:
     name: frontend-coverage
 
 - name: Backend Coverage
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     directory: ./backend/coverage
     flags: backend
     name: backend-coverage
-```
-
-### Coverage Gate with Threshold
-
-```yaml
-- name: Codecov Action
-  id: codecov
-  uses: mathuraditya724/codecov-action@v1
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-
-- name: Check coverage threshold
-  run: |
-    if [ "${{ steps.codecov.outputs.line-coverage }}" -lt "80" ]; then
-      echo "Coverage is below 80%!"
-      exit 1
-    fi
-
-- name: Fail on broken tests
-  if: steps.codecov.outputs.tests-broken != '0'
-  run: |
-    echo "Tests were broken in this PR!"
-    exit 1
 ```
 
 ### Coverage Thresholds with Status Checks
@@ -247,7 +228,7 @@ Use built-in threshold enforcement with GitHub status checks:
 
 ```yaml
 - name: Codecov Action
-  uses: mathuraditya724/codecov-action@v1
+  uses: getsentry/codecov-action@v1
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
     target-project: auto          # Use base branch coverage as target
@@ -308,7 +289,7 @@ These status checks:
 - Can be used in **branch protection rules** to require coverage thresholds
 - Provide immediate feedback on coverage quality
 
-### Status Badges
+## Status Badges
 
 Display your CI status in your README using GitHub's workflow badge:
 
@@ -380,7 +361,7 @@ dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
 
 ## Configuration File
 
-You can configure status check thresholds using a `.github/coverage.yml` file in your repository:
+You can configure status check thresholds using a `.github/coverage.yml` file in your repository. Action inputs take precedence over the config file, allowing you to override settings per-workflow.
 
 ```yaml
 # .github/coverage.yml
