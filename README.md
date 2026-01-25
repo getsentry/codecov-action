@@ -1,5 +1,7 @@
 # Codecov Action
 
+![CI](https://github.com/getsentry/codecov-action/actions/workflows/main.yml/badge.svg)
+
 ## Quick Start
 
 ```yaml
