@@ -37,6 +37,7 @@ interface CoverageConfig {
   name: string;
   // Config from .github/coverage.yml
   status?: NormalizedConfig["status"];
+  comment: NormalizedConfig["comment"];
   // Threshold overrides from inputs
   failOnError: boolean;
   targetProject?: number | "auto";
@@ -131,6 +132,7 @@ async function getCoverageConfig(): Promise<CoverageConfig> {
     flags,
     name,
     status: yamlConfig.status,
+    comment: yamlConfig.comment,
     failOnError,
     targetProject,
     thresholdProject,
@@ -252,6 +254,7 @@ async function run() {
             coverageConfig.thresholdProject ??
             coverageConfig.status?.project.threshold ??
             null,
+          informational: coverageConfig.status?.project.informational ?? false,
         };
 
         // Check project status
@@ -269,10 +272,16 @@ async function run() {
         );
 
         if (projectStatus.status === "failure") {
-          core.warning(
-            `❌ Project coverage check failed: ${projectStatus.description}`
-          );
-          coverageChecksFailed = true;
+          if (projectStatus.informational) {
+            core.info(
+              `ℹ️ Project coverage check failed (informational): ${projectStatus.description}`
+            );
+          } else {
+            core.warning(
+              `❌ Project coverage check failed: ${projectStatus.description}`
+            );
+            coverageChecksFailed = true;
+          }
         } else {
           core.info(
             `✅ Project coverage check passed: ${projectStatus.description}`
@@ -286,6 +295,7 @@ async function run() {
             coverageConfig.status?.patch.target ??
             80,
           threshold: coverageConfig.status?.patch.threshold ?? null,
+          informational: coverageConfig.status?.patch.informational ?? false,
         };
 
         const patchStatus = ThresholdChecker.checkPatchStatus(
@@ -299,6 +309,24 @@ async function run() {
           patchStatus.status,
           patchStatus.description
         );
+
+        // Check if patch status should fail the build
+        if (patchStatus.status === "failure") {
+          if (patchStatus.informational) {
+            core.info(
+              `ℹ️ Patch coverage check failed (informational): ${patchStatus.description}`
+            );
+          } else {
+            core.warning(
+              `❌ Patch coverage check failed: ${patchStatus.description}`
+            );
+            coverageChecksFailed = true;
+          }
+        } else {
+          core.info(
+            `✅ Patch coverage check passed: ${patchStatus.description}`
+          );
+        }
       }
     }
 
@@ -313,8 +341,9 @@ async function run() {
     core.info("📝 Writing Job Summary...");
     await core.summary.addRaw(reportBody).write();
 
-    // Optionally post PR comment if enabled and in PR context
-    if (postPrComment && githubClient.isPullRequest()) {
+    // Optionally post PR comment if enabled (via config file or action input) and in PR context
+    const shouldPostPrComment = coverageConfig.comment.enabled || postPrComment;
+    if (shouldPostPrComment && githubClient.isPullRequest()) {
       core.info("📝 Posting results to PR comment...");
       await githubClient.postOrUpdateComment(reportBody);
     }

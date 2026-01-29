@@ -19,8 +19,11 @@ describe("ConfigLoader", () => {
     
     expect(config.status.project.target).toBe("auto");
     expect(config.status.project.threshold).toBeNull();
+    expect(config.status.project.informational).toBe(false);
     expect(config.status.patch.target).toBe(80);
+    expect(config.status.patch.informational).toBe(false);
     expect(config.ignore).toEqual([]);
+    expect(config.comment.enabled).toBe(false);
   });
 
   it("should parse valid yaml config", async () => {
@@ -60,5 +63,200 @@ coverage:
 
     expect(config.status.project.target).toBe(85);
     expect(config.status.patch.target).toBe(80); // Default preserved
+  });
+
+  describe("informational flag", () => {
+    it("should parse informational: true for project", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      target: 80
+      informational: true
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.informational).toBe(true);
+      expect(config.status.patch.informational).toBe(false);
+    });
+
+    it("should parse informational: true for patch", async () => {
+      const yaml = `
+coverage:
+  status:
+    patch:
+      target: 70
+      informational: true
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.informational).toBe(false);
+      expect(config.status.patch.informational).toBe(true);
+    });
+  });
+
+  describe("nested default key (Codecov-style)", () => {
+    it("should parse project.default.target", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 10
+        informational: true
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.target).toBe("auto");
+      expect(config.status.project.threshold).toBe(10);
+      expect(config.status.project.informational).toBe(true);
+    });
+
+    it("should parse patch.default.target", async () => {
+      const yaml = `
+coverage:
+  status:
+    patch:
+      default:
+        target: 90
+        informational: true
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.patch.target).toBe(90);
+      expect(config.status.patch.informational).toBe(true);
+    });
+  });
+
+  describe("threshold parsing", () => {
+    it("should parse threshold as percentage string", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      target: auto
+      threshold: "10%"
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.threshold).toBe(10);
+    });
+
+    it("should parse threshold as number string without percent sign", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      target: auto
+      threshold: "5"
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.threshold).toBe(5);
+    });
+
+    it("should parse threshold as decimal percentage string", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      target: auto
+      threshold: "2.5%"
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.threshold).toBe(2.5);
+    });
+
+    it("should parse threshold as number", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      target: auto
+      threshold: 3
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.status.project.threshold).toBe(3);
+    });
+  });
+
+  describe("comment configuration", () => {
+    it("should parse comment: true", async () => {
+      const yaml = `
+comment: true
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.comment.enabled).toBe(true);
+    });
+
+    it("should parse comment: false", async () => {
+      const yaml = `
+comment: false
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.comment.enabled).toBe(false);
+    });
+
+    it("should parse comment: {} as enabled", async () => {
+      const yaml = `
+comment: {}
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.comment.enabled).toBe(true);
+    });
+
+    it("should default comment to disabled when not specified", async () => {
+      const yaml = `
+coverage:
+  status:
+    project:
+      target: 80
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.comment.enabled).toBe(false);
+    });
   });
 });

@@ -5,11 +5,13 @@ import type { PatchCoverageResults } from "./patch-analyzer.js";
 export interface StatusCheckResult {
   status: "success" | "failure";
   description: string;
+  informational: boolean; // When true, failure is advisory-only and should not fail the build
 }
 
 export interface PatchConfig {
   target: number | "auto";
   threshold: number | null;
+  informational: boolean;
 }
 
 export const ThresholdChecker = {
@@ -20,7 +22,7 @@ export const ThresholdChecker = {
     results: AggregatedCoverageResults,
     config: NormalizedConfig["status"]["project"]
   ): StatusCheckResult {
-    const { target, threshold } = config;
+    const { target, threshold, informational } = config;
     const currentCoverage = results.lineRate;
 
     // Target: number (absolute percentage)
@@ -30,7 +32,7 @@ export const ThresholdChecker = {
       const description = `${currentCoverage.toFixed(2)}% ${
         isSuccess ? ">=" : "<"
       } target ${target}%`;
-      return { status, description };
+      return { status, description, informational };
     }
 
     // Target: "auto" (relative to base branch)
@@ -40,6 +42,7 @@ export const ThresholdChecker = {
         return {
           status: "success",
           description: `${currentCoverage.toFixed(2)}% (No base report)`,
+          informational,
         };
       }
 
@@ -66,10 +69,10 @@ export const ThresholdChecker = {
         }
       }
 
-      return { status, description };
+      return { status, description, informational };
     }
 
-    return { status: "success", description: "Unknown target configuration" };
+    return { status: "success", description: "Unknown target configuration", informational };
   },
 
   /**
@@ -79,11 +82,14 @@ export const ThresholdChecker = {
     patchCoverage: PatchCoverageResults | null,
     config: PatchConfig
   ): StatusCheckResult {
+    const { informational } = config;
+
     // If no patch coverage data available (not in PR context or calculation failed)
     if (!patchCoverage) {
       return {
         status: "success",
         description: "Patch coverage: N/A (not in PR context)",
+        informational,
       };
     }
 
@@ -96,6 +102,7 @@ export const ThresholdChecker = {
       description: `${patchCoverage.percentage.toFixed(2)}% ${
         isSuccess ? ">=" : "<"
       } target ${target}%`,
+      informational,
     };
   },
 };
