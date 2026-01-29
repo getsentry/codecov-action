@@ -521,6 +521,7 @@ async function findCoverageFiles(config: CoverageConfig): Promise<string[]> {
     "**/coverage-final.json",
     "**/coverage.out",
     "**/cover.out",
+    "**/codecov.json",
   ];
 
   // Check for legacy coverage-xml-pattern input

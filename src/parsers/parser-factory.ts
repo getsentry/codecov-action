@@ -7,6 +7,7 @@ import type {
 import type { CoverageFormat, ICoverageParser } from "./base-parser.js";
 import { CloverParser } from "./clover-parser.js";
 import { CoberturaParser } from "./cobertura-parser.js";
+import { CodecovParser } from "./codecov-parser.js";
 import { GoParser } from "./go-parser.js";
 import { IstanbulParser } from "./istanbul-parser.js";
 import { JaCoCoParser } from "./jacoco-parser.js";
@@ -19,6 +20,7 @@ const PARSERS: ICoverageParser[] = [
   new LcovParser(),
   new IstanbulParser(),
   new GoParser(),
+  new CodecovParser(), // Added last to avoid false positives with other JSON formats
 ];
 
 /**
@@ -99,6 +101,9 @@ export const CoverageParserFactory = {
       lowerPath.endsWith(".coverprofile")
     ) {
       return "go";
+    }
+    if (lowerPath.endsWith("codecov.json")) {
+      return "codecov";
     }
 
     return null;
@@ -253,6 +258,7 @@ export const CoverageParserFactory = {
 export type { CoverageFormat, ICoverageParser } from "./base-parser.js";
 export { CloverParser } from "./clover-parser.js";
 export { CoberturaParser } from "./cobertura-parser.js";
+export { CodecovParser } from "./codecov-parser.js";
 export { GoParser } from "./go-parser.js";
 export { IstanbulParser } from "./istanbul-parser.js";
 export { JaCoCoParser } from "./jacoco-parser.js";

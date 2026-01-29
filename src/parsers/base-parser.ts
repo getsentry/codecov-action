@@ -9,7 +9,8 @@ export type CoverageFormat =
   | "jacoco"
   | "lcov"
   | "istanbul"
-  | "go";
+  | "go"
+  | "codecov";
 
 /**
  * Interface for all coverage parsers

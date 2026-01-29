@@ -231,7 +231,8 @@ github.com/user/project/file.go:1.1,3.2 1 1
       expect(formats).toContain("lcov");
       expect(formats).toContain("istanbul");
       expect(formats).toContain("go");
-      expect(formats).toHaveLength(6);
+      expect(formats).toContain("codecov");
+      expect(formats).toHaveLength(7);
     });
   });
 
