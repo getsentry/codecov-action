@@ -39,6 +39,7 @@ jobs:
 | **LCOV** | `lcov.info`, `*.lcov` | c8, lcov (C/C++), grcov (Rust), gcov |
 | **Istanbul JSON** | `coverage-final.json` | Jest, Vitest, NYC (JS/TS) |
 | **Go Coverage** | `coverage.out`, `cover.out` | `go test -coverprofile` |
+| **Codecov JSON** | `codecov.json` | cargo-llvm-cov (Rust), custom tools |
 
 ## Inputs
 
@@ -59,7 +60,7 @@ jobs:
 | `files` | Comma-separated list of coverage files | No | — |
 | `directory` | Folder to search for coverage files | No | `.` |
 | `exclude` | Comma-separated patterns to exclude | No | — |
-| `coverage-format` | Format hint: `auto`, `clover`, `cobertura`, `jacoco`, `lcov`, `istanbul`, `go` | No | `auto` |
+| `coverage-format` | Format hint: `auto`, `clover`, `cobertura`, `jacoco`, `lcov`, `istanbul`, `go`, `codecov` | No | `auto` |
 | `disable-search` | Disable auto-search, use only explicit `files` | No | `false` |
 
 ### Behavior Flags (Codecov-style)
@@ -186,6 +187,23 @@ When thresholds are not configured, status checks report coverage metrics withou
     token: ${{ secrets.GITHUB_TOKEN }}
     files: ./coverage.out
     coverage-format: go
+```
+
+### Rust with cargo-llvm-cov
+
+```yaml
+- name: Install cargo-llvm-cov
+  uses: taiki-e/install-action@cargo-llvm-cov
+
+- name: Run tests with coverage
+  run: cargo llvm-cov --codecov --output-path codecov.json
+
+- name: Codecov Action
+  uses: getsentry/codecov-action@v1
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
+    files: ./codecov.json
+    coverage-format: codecov
 ```
 
 ### JavaScript/TypeScript with LCOV
@@ -351,6 +369,19 @@ jacocoTestReport {
 go test -coverprofile=coverage.out ./...
 ```
 
+### Rust (cargo-llvm-cov)
+
+```bash
+# Install cargo-llvm-cov
+cargo install cargo-llvm-cov
+
+# Generate Codecov JSON format
+cargo llvm-cov --codecov --output-path codecov.json
+
+# Or generate LCOV format
+cargo llvm-cov --lcov --output-path lcov.info
+```
+
 ### .NET (Coverlet)
 
 ```bash
@@ -369,20 +400,52 @@ coverage:
   status:
     project:
       target: 80        # Target coverage percentage (or "auto" to use base branch)
-      threshold: 1      # Allowed coverage drop when using "auto"
+      threshold: 1      # Allowed coverage drop when using "auto" (supports "1%" or 1)
+      informational: false  # When true, status check reports but never fails the build
     patch:
       target: 90        # Target coverage for changed lines
+      informational: false
   ignore:
     - "**/*.test.ts"    # Patterns to exclude from coverage
     - "**/fixtures/**"
+
+# Enable PR comments from config (alternative to post-pr-comment input)
+comment: true
 ```
 
 | Option | Description |
 |--------|-------------|
 | `status.project.target` | Target project coverage % (number or `"auto"`) |
-| `status.project.threshold` | Allowed drop from base branch when target is `"auto"` |
+| `status.project.threshold` | Allowed drop from base branch when target is `"auto"`. Supports number (`1`) or string (`"1%"`) |
+| `status.project.informational` | When `true`, status check reports but never fails the build (advisory mode) |
 | `status.patch.target` | Target coverage % for changed lines |
+| `status.patch.informational` | When `true`, patch status check is advisory-only |
 | `ignore` | Glob patterns to exclude from coverage calculations |
+| `comment` | Enable PR comments. Set to `true`, `false`, or `{}` (object form for future options) |
+
+### Codecov YAML Compatibility
+
+This action also supports the standard Codecov YAML format with nested `default` keys:
+
+```yaml
+# .github/codecov.yml (Codecov-compatible format)
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 10%    # Percentage strings are supported
+        informational: true
+    patch:
+      default:
+        target: 80
+  ignore:
+    - "tests/**"
+
+comment: true
+```
+
+Both formats work identically—use whichever style you prefer.
 
 ## Permissions
 
