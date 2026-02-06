@@ -207,6 +207,8 @@ async function run() {
     let aggregatedCoverageResults = null;
     let patchCoverage: PatchCoverageResults | null = null;
     let coverageChecksFailed = false;
+    const patchTargetForFormatter =
+      coverageConfig.targetPatch ?? coverageConfig.status?.patch.target ?? 80;
 
     if (enableCoverage) {
       aggregatedCoverageResults = await processCoverage(
@@ -291,10 +293,7 @@ async function run() {
 
         // Check patch status
         const patchConfig = {
-          target:
-            coverageConfig.targetPatch ??
-            coverageConfig.status?.patch.target ??
-            80,
+          target: patchTargetForFormatter,
           threshold: coverageConfig.status?.patch.threshold ?? null,
           informational: coverageConfig.status?.patch.informational ?? false,
         };
@@ -335,7 +334,10 @@ async function run() {
     const formatter = new ReportFormatter();
     const summaryReportBody = formatter.formatReport(
       aggregatedTestResults || undefined,
-      aggregatedCoverageResults || undefined
+      aggregatedCoverageResults || undefined,
+      {
+        patchTarget: patchTargetForFormatter,
+      }
     );
 
     // Write Job Summary (always)
@@ -354,6 +356,7 @@ async function run() {
             coverageConfig.comment.files === "changed"
               ? patchCoverage?.changedFiles || []
               : undefined,
+          patchTarget: patchTargetForFormatter,
         }
       );
       core.info("📝 Posting results to PR comment...");

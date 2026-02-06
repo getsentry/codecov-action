@@ -238,50 +238,54 @@ describe("ReportFormatter", () => {
       ],
     };
 
-    it("should show checkmark for high patch coverage (>= 80%) even with project misses", () => {
+    it("should show checkmark when patch coverage meets configured target", () => {
       const coverageResults: AggregatedCoverageResults = {
         totalStatements: 1000,
-        coveredStatements: 800,
+        coveredStatements: 775,
         totalConditionals: 100,
-        coveredConditionals: 80,
+        coveredConditionals: 77,
         totalMethods: 50,
-        coveredMethods: 40,
-        lineRate: 80,
-        branchRate: 80,
+        coveredMethods: 38,
+        lineRate: 77.56,
+        branchRate: 77.56,
         files: [],
-        patchCoverageRate: 100,
+        patchCoverageRate: 77.56,
         totalMisses: 1348,
       };
 
-      const comment = formatter.formatReport(undefined, coverageResults);
+      const comment = formatter.formatReport(undefined, coverageResults, {
+        patchTarget: 70,
+      });
 
-      // Should show checkmark because patch coverage is >= 80%
-      expect(comment).toContain(":white_check_mark: Patch coverage is **100.00%**.");
+      // Should show checkmark because patch coverage is >= configured target (70%)
+      expect(comment).toContain(":white_check_mark: Patch coverage is **77.56%**.");
       // Should show project misses as separate info
       expect(comment).toContain("Project has **1348** uncovered lines.");
       // Should NOT have the old conflated message format
       expect(comment).not.toContain("with **1348 lines** missing coverage");
     });
 
-    it("should show X for low patch coverage (< 80%)", () => {
+    it("should show X when patch coverage is below configured target", () => {
       const coverageResults: AggregatedCoverageResults = {
         totalStatements: 1000,
-        coveredStatements: 500,
+        coveredStatements: 775,
         totalConditionals: 100,
-        coveredConditionals: 50,
+        coveredConditionals: 77,
         totalMethods: 50,
-        coveredMethods: 25,
-        lineRate: 50,
-        branchRate: 50,
+        coveredMethods: 38,
+        lineRate: 77.56,
+        branchRate: 77.56,
         files: [],
-        patchCoverageRate: 50,
+        patchCoverageRate: 77.56,
         totalMisses: 500,
       };
 
-      const comment = formatter.formatReport(undefined, coverageResults);
+      const comment = formatter.formatReport(undefined, coverageResults, {
+        patchTarget: 80,
+      });
 
-      // Should show X because patch coverage is < 80%
-      expect(comment).toContain(":x: Patch coverage is **50.00%**.");
+      // Should show X because patch coverage is below configured target (80%)
+      expect(comment).toContain(":x: Patch coverage is **77.56%**.");
       // Should show project misses as separate info
       expect(comment).toContain("Project has **500** uncovered lines.");
     });

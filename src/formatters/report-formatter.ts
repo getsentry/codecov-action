@@ -8,6 +8,7 @@ import type {
 export interface ReportFormatOptions {
   filesMode?: CommentFilesMode;
   changedFiles?: string[];
+  patchTarget?: number;
 }
 
 export class ReportFormatter {
@@ -138,8 +139,11 @@ export class ReportFormatter {
         ? results.patchCoverageRate.toFixed(2)
         : results.lineRate.toFixed(2);
 
+    const patchTarget = options.patchTarget ?? 80;
+
     // Line 1: Patch coverage (emoji based on patch rate, not project misses)
-    const patchEmoji = parseFloat(patchRate) >= 80 ? ":white_check_mark:" : ":x:";
+    const patchEmoji =
+      parseFloat(patchRate) >= patchTarget ? ":white_check_mark:" : ":x:";
 
     // Build message with clear separation of patch coverage and project misses
     let patchMessage = `${patchEmoji} Patch coverage is **${patchRate}%**.`;
