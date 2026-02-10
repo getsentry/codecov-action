@@ -1,0 +1,5 @@
+minVersion: "2.21.2"
+changelog:
+  policy: auto
+targets:
+  - name: github
