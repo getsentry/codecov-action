@@ -8,6 +8,7 @@ export interface PatchCoverageResults {
   totalLines: number;
   percentage: number;
   fileBreakdown: PatchFileCoverage[];
+  changedFiles: string[];
 }
 
 export interface PatchFileCoverage {
@@ -27,6 +28,7 @@ export const PatchAnalyzer = {
   ): PatchCoverageResults {
     const diffFiles = parseDiff(diffContent);
     const fileBreakdown: PatchFileCoverage[] = [];
+    const changedFiles = new Set<string>();
 
     let totalCovered = 0;
     let totalMissed = 0;
@@ -43,6 +45,7 @@ export const PatchAnalyzer = {
       if (diffFile.deleted || !diffFile.to) {
         continue;
       }
+      changedFiles.add(diffFile.to);
 
       // Try to find matching coverage file
       // Diff paths usually strictly relative, coverage paths might vary
@@ -116,6 +119,7 @@ export const PatchAnalyzer = {
       totalLines,
       percentage,
       fileBreakdown,
+      changedFiles: [...changedFiles],
     };
   },
 };

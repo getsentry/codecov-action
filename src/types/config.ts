@@ -17,8 +17,16 @@ export interface CoverageStatusConfig {
  * - `comment: true` - Enable PR comments
  * - `comment: false` - Disable PR comments
  * - `comment: {}` - Enable PR comments (object form for future properties)
+ * - `comment: { files: "all" | "changed" | "none" }` - Control file table scope in PR comments
  */
-export type CommentConfigInput = boolean | Record<string, unknown>;
+export type CommentFilesMode = "all" | "changed" | "none";
+
+export interface CommentConfigObject {
+  files?: CommentFilesMode | string;
+  [key: string]: unknown;
+}
+
+export type CommentConfigInput = boolean | CommentConfigObject;
 
 /**
  * Root configuration interface for .github/coverage.yml
@@ -55,6 +63,7 @@ export interface NormalizedConfig {
   ignore: string[];
   comment: {
     enabled: boolean;
+    files: CommentFilesMode;
     // Future: layout, requireChanges, requireBase, requireHead
   };
 }

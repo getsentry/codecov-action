@@ -87,6 +87,7 @@ index 83db48f..bf269f4 100644
     expect(result.coveredLines).toBe(5);
     expect(result.missedLines).toBe(1);
     expect(result.percentage).toBeCloseTo(83.33, 2); // 5/6 * 100
+    expect(result.changedFiles).toEqual(["src/utils.ts"]);
   });
 
   it("should handle files not present in coverage report", () => {
@@ -109,6 +110,7 @@ index 0000000..e69de29
 
     expect(result.totalLines).toBe(0);
     expect(result.percentage).toBe(100); // Default when no lines found
+    expect(result.changedFiles).toEqual(["src/new-file.ts"]);
   });
 
   it("should ignore non-executable lines (comments/whitespace) in diff", () => {
@@ -123,10 +125,7 @@ index 83db48f..bf269f4 100644
  }
 `;
     
-    const result = PatchAnalyzer.analyzePatchCoverage(
-      diffWithComment,
-      mockCoverage
-    );
+    PatchAnalyzer.analyzePatchCoverage(diffWithComment, mockCoverage);
 
     // Line 11 added, but not in mockCoverage lines map?
     // Wait, mockCoverage has line 11. Let's adjust mock to NOT have the comment line.
@@ -146,5 +145,44 @@ index 83db48f..bf269f4 100644
 
     const result2 = PatchAnalyzer.analyzePatchCoverage(simpleDiff, mockCoverage);
     expect(result2.totalLines).toBe(0); // Line 99 is not in coverage map, so ignored
+  });
+
+  it("should include non-deleted changed files and dedupe duplicate entries", () => {
+    const diffWithDeletedAndDuplicate = `diff --git a/src/removed.ts b/src/removed.ts
+deleted file mode 100644
+index abcdef0..0000000
+--- a/src/removed.ts
++++ /dev/null
+@@ -1,2 +0,0 @@
+-export const removed = true;
+-export const deadCode = false;
+diff --git a/src/utils.ts b/src/utils.ts
+index 83db48f..bf269f4 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -10,0 +11,1 @@
++export const fromFirstBlock = true;
+diff --git a/src/utils.ts b/src/utils.ts
+index bf269f4..c03ff11 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -20,0 +21,1 @@
++export const fromSecondBlock = true;
+diff --git a/src/new-file.ts b/src/new-file.ts
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/new-file.ts
+@@ -0,0 +1 @@
++export const newlyAdded = true;
+`;
+
+    const result = PatchAnalyzer.analyzePatchCoverage(
+      diffWithDeletedAndDuplicate,
+      mockCoverage
+    );
+
+    expect(result.changedFiles).toEqual(["src/utils.ts", "src/new-file.ts"]);
+    expect(result.changedFiles).not.toContain("src/removed.ts");
   });
 });

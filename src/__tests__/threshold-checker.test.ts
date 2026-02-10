@@ -95,6 +95,7 @@ describe("ThresholdChecker", () => {
       totalLines: 10,
       percentage: 80,
       fileBreakdown: [],
+      changedFiles: [],
     };
 
     it("should pass when patch coverage exceeds target", () => {

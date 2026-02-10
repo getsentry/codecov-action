@@ -181,50 +181,111 @@ describe("ReportFormatter", () => {
   });
 
   describe("Coverage Section", () => {
-    it("should show checkmark for high patch coverage (>= 80%) even with project misses", () => {
+    const coverageWithMissingFiles: AggregatedCoverageResults = {
+      totalStatements: 120,
+      coveredStatements: 100,
+      totalConditionals: 12,
+      coveredConditionals: 10,
+      totalMethods: 6,
+      coveredMethods: 5,
+      lineRate: 83.33,
+      branchRate: 83.33,
+      totalMisses: 20,
+      patchCoverageRate: 90,
+      files: [
+        {
+          name: "changed-file.ts",
+          path: "src/changed-file.ts",
+          statements: 10,
+          coveredStatements: 8,
+          conditionals: 2,
+          coveredConditionals: 1,
+          methods: 1,
+          coveredMethods: 1,
+          lineRate: 80,
+          branchRate: 50,
+          lines: [],
+          missingLines: [10, 11],
+        },
+        {
+          name: "unchanged-file.ts",
+          path: "src/unchanged-file.ts",
+          statements: 8,
+          coveredStatements: 7,
+          conditionals: 2,
+          coveredConditionals: 2,
+          methods: 1,
+          coveredMethods: 1,
+          lineRate: 87.5,
+          branchRate: 100,
+          lines: [],
+          missingLines: [25],
+        },
+        {
+          name: "dot-prefixed.ts",
+          path: "./src/dot-prefixed.ts",
+          statements: 6,
+          coveredStatements: 5,
+          conditionals: 2,
+          coveredConditionals: 2,
+          methods: 1,
+          coveredMethods: 1,
+          lineRate: 83.33,
+          branchRate: 100,
+          lines: [],
+          partialLines: [40],
+        },
+      ],
+    };
+
+    it("should show checkmark when patch coverage meets configured target", () => {
       const coverageResults: AggregatedCoverageResults = {
         totalStatements: 1000,
-        coveredStatements: 800,
+        coveredStatements: 775,
         totalConditionals: 100,
-        coveredConditionals: 80,
+        coveredConditionals: 77,
         totalMethods: 50,
-        coveredMethods: 40,
-        lineRate: 80,
-        branchRate: 80,
+        coveredMethods: 38,
+        lineRate: 77.56,
+        branchRate: 77.56,
         files: [],
-        patchCoverageRate: 100,
+        patchCoverageRate: 77.56,
         totalMisses: 1348,
       };
 
-      const comment = formatter.formatReport(undefined, coverageResults);
+      const comment = formatter.formatReport(undefined, coverageResults, {
+        patchTarget: 70,
+      });
 
-      // Should show checkmark because patch coverage is >= 80%
-      expect(comment).toContain(":white_check_mark: Patch coverage is **100.00%**.");
+      // Should show checkmark because patch coverage is >= configured target (70%)
+      expect(comment).toContain(":white_check_mark: Patch coverage is **77.56%**.");
       // Should show project misses as separate info
       expect(comment).toContain("Project has **1348** uncovered lines.");
       // Should NOT have the old conflated message format
       expect(comment).not.toContain("with **1348 lines** missing coverage");
     });
 
-    it("should show X for low patch coverage (< 80%)", () => {
+    it("should show X when patch coverage is below configured target", () => {
       const coverageResults: AggregatedCoverageResults = {
         totalStatements: 1000,
-        coveredStatements: 500,
+        coveredStatements: 775,
         totalConditionals: 100,
-        coveredConditionals: 50,
+        coveredConditionals: 77,
         totalMethods: 50,
-        coveredMethods: 25,
-        lineRate: 50,
-        branchRate: 50,
+        coveredMethods: 38,
+        lineRate: 77.56,
+        branchRate: 77.56,
         files: [],
-        patchCoverageRate: 50,
+        patchCoverageRate: 77.56,
         totalMisses: 500,
       };
 
-      const comment = formatter.formatReport(undefined, coverageResults);
+      const comment = formatter.formatReport(undefined, coverageResults, {
+        patchTarget: 80,
+      });
 
-      // Should show X because patch coverage is < 80%
-      expect(comment).toContain(":x: Patch coverage is **50.00%**.");
+      // Should show X because patch coverage is below configured target (80%)
+      expect(comment).toContain(":x: Patch coverage is **77.56%**.");
       // Should show project misses as separate info
       expect(comment).toContain("Project has **500** uncovered lines.");
     });
@@ -271,6 +332,77 @@ describe("ReportFormatter", () => {
 
       // Should use lineRate (85%) which is >= 80%, so checkmark
       expect(comment).toContain(":white_check_mark: Patch coverage is **85.00%**.");
+    });
+
+    it("should show all files with missing lines when filesMode is all", () => {
+      const comment = formatter.formatReport(undefined, coverageWithMissingFiles, {
+        filesMode: "all",
+      });
+
+      expect(comment).toContain("Files with missing lines (3)");
+      expect(comment).toContain("`changed-file.ts`");
+      expect(comment).toContain("`unchanged-file.ts`");
+      expect(comment).toContain("`dot-prefixed.ts`");
+    });
+
+    it("should only show changed files when filesMode is changed", () => {
+      const comment = formatter.formatReport(undefined, coverageWithMissingFiles, {
+        filesMode: "changed",
+        changedFiles: ["src/changed-file.ts", "/src/dot-prefixed.ts"],
+      });
+
+      expect(comment).toContain("Files with missing lines (2)");
+      expect(comment).toContain("`changed-file.ts`");
+      expect(comment).toContain("`dot-prefixed.ts`");
+      expect(comment).not.toContain("`unchanged-file.ts`");
+    });
+
+    it("should match absolute coverage paths when filesMode is changed", () => {
+      const coverageWithAbsolutePath: AggregatedCoverageResults = {
+        ...coverageWithMissingFiles,
+        files: [
+          {
+            ...coverageWithMissingFiles.files[0],
+            path: "/home/runner/work/repo/repo/src/changed-file.ts",
+          },
+          coverageWithMissingFiles.files[1],
+        ],
+      };
+
+      const comment = formatter.formatReport(undefined, coverageWithAbsolutePath, {
+        filesMode: "changed",
+        changedFiles: ["src/changed-file.ts"],
+      });
+
+      expect(comment).toContain("Files with missing lines (1)");
+      expect(comment).toContain("`changed-file.ts`");
+      expect(comment).not.toContain("`unchanged-file.ts`");
+    });
+
+    it("should hide file table when filesMode is none", () => {
+      const comment = formatter.formatReport(undefined, coverageWithMissingFiles, {
+        filesMode: "none",
+      });
+
+      expect(comment).not.toContain("Files with missing lines");
+      expect(comment).not.toContain("`changed-file.ts`");
+    });
+
+    it("should hide file table when filesMode is changed and changedFiles is empty", () => {
+      const comment = formatter.formatReport(undefined, coverageWithMissingFiles, {
+        filesMode: "changed",
+        changedFiles: [],
+      });
+
+      expect(comment).not.toContain("Files with missing lines");
+    });
+
+    it("should hide file table when filesMode is changed and changedFiles is absent", () => {
+      const comment = formatter.formatReport(undefined, coverageWithMissingFiles, {
+        filesMode: "changed",
+      });
+
+      expect(comment).not.toContain("Files with missing lines");
     });
   });
 });

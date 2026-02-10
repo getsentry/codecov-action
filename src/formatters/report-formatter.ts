@@ -1,8 +1,15 @@
 import type { AggregatedCoverageResults } from "../types/coverage.js";
+import type { CommentFilesMode } from "../types/config.js";
 import type {
   AggregatedTestResults,
   TestComparison,
 } from "../types/test-results.js";
+
+export interface ReportFormatOptions {
+  filesMode?: CommentFilesMode;
+  changedFiles?: string[];
+  patchTarget?: number;
+}
 
 export class ReportFormatter {
   /**
@@ -10,7 +17,8 @@ export class ReportFormatter {
    */
   formatReport(
     testResults?: AggregatedTestResults,
-    coverageResults?: AggregatedCoverageResults
+    coverageResults?: AggregatedCoverageResults,
+    options: ReportFormatOptions = {}
   ): string {
     const lines: string[] = [];
 
@@ -25,7 +33,7 @@ export class ReportFormatter {
 
     // Add coverage section
     if (coverageResults) {
-      this.addCoverageSection(lines, coverageResults);
+      this.addCoverageSection(lines, coverageResults, options);
     }
 
     // Footer
@@ -120,7 +128,8 @@ export class ReportFormatter {
    */
   private addCoverageSection(
     lines: string[],
-    results: AggregatedCoverageResults
+    results: AggregatedCoverageResults,
+    options: ReportFormatOptions
   ): void {
     // Calculate metrics
     const totalMissing = results.totalMisses || 0;
@@ -130,8 +139,11 @@ export class ReportFormatter {
         ? results.patchCoverageRate.toFixed(2)
         : results.lineRate.toFixed(2);
 
+    const patchTarget = options.patchTarget ?? 80;
+
     // Line 1: Patch coverage (emoji based on patch rate, not project misses)
-    const patchEmoji = parseFloat(patchRate) >= 80 ? ":white_check_mark:" : ":x:";
+    const patchEmoji =
+      parseFloat(patchRate) >= patchTarget ? ":white_check_mark:" : ":x:";
 
     // Build message with clear separation of patch coverage and project misses
     let patchMessage = `${patchEmoji} Patch coverage is **${patchRate}%**.`;
@@ -159,21 +171,10 @@ export class ReportFormatter {
     }
     lines.push("");
 
-    // Files with missing lines (top 10 visible, rest collapsed)
-    const filesWithMissing = results.files
-      .filter(
-        (f) =>
-          (f.missingLines?.length || 0) > 0 || (f.partialLines?.length || 0) > 0
-      )
-      .sort((a, b) => {
-        const aMissing =
-          (a.missingLines?.length || 0) + (a.partialLines?.length || 0);
-        const bMissing =
-          (b.missingLines?.length || 0) + (b.partialLines?.length || 0);
-        return bMissing - aMissing;
-      });
+    const filesMode = options.filesMode || "all";
+    const filesWithMissing = this.getFilesWithMissingLines(results, options);
 
-    if (filesWithMissing.length > 0) {
+    if (filesMode !== "none" && filesWithMissing.length > 0) {
       lines.push("<details>");
       lines.push(
         `<summary>Files with missing lines (${filesWithMissing.length})</summary>`
@@ -215,6 +216,66 @@ export class ReportFormatter {
     if (results.flags && results.flags.length > 0) {
       this.addFlagsSection(lines, results);
     }
+  }
+
+  private getFilesWithMissingLines(
+    results: AggregatedCoverageResults,
+    options: ReportFormatOptions
+  ) {
+    const allFilesWithMissing = results.files
+      .filter(
+        (f) =>
+          (f.missingLines?.length || 0) > 0 || (f.partialLines?.length || 0) > 0
+      )
+      .sort((a, b) => {
+        const aMissing =
+          (a.missingLines?.length || 0) + (a.partialLines?.length || 0);
+        const bMissing =
+          (b.missingLines?.length || 0) + (b.partialLines?.length || 0);
+        return bMissing - aMissing;
+      });
+
+    const filesMode = options.filesMode || "all";
+    if (filesMode !== "changed") {
+      return allFilesWithMissing;
+    }
+
+    const changedFiles = options.changedFiles || [];
+    if (changedFiles.length === 0) {
+      return [];
+    }
+
+    const normalizedChangedFiles = changedFiles.map((filePath) =>
+      this.normalizeFilePath(filePath)
+    );
+    const changedFilesSet = new Set(normalizedChangedFiles);
+
+    return allFilesWithMissing.filter((file) =>
+      this.matchesChangedFile(
+        this.normalizeFilePath(file.path),
+        normalizedChangedFiles,
+        changedFilesSet
+      )
+    );
+  }
+
+  private normalizeFilePath(filePath: string): string {
+    return filePath.replace(/\\/g, "/").replace(/^\.?\//, "");
+  }
+
+  private matchesChangedFile(
+    normalizedCoveragePath: string,
+    normalizedChangedFiles: string[],
+    changedFilesSet: Set<string>
+  ): boolean {
+    if (changedFilesSet.has(normalizedCoveragePath)) {
+      return true;
+    }
+
+    // Coverage parsers can emit absolute paths while PR diffs are repo-relative.
+    return normalizedChangedFiles.some((changedPath) =>
+      normalizedCoveragePath.endsWith(`/${changedPath}`)
+    );
   }
 
   /**

@@ -410,7 +410,8 @@ coverage:
     - "**/fixtures/**"
 
 # Enable PR comments from config (alternative to post-pr-comment input)
-comment: true
+comment:
+  files: changed   # all (default) | changed | none
 ```
 
 | Option | Description |
@@ -421,7 +422,7 @@ comment: true
 | `status.patch.target` | Target coverage % for changed lines |
 | `status.patch.informational` | When `true`, patch status check is advisory-only |
 | `ignore` | Glob patterns to exclude from coverage calculations |
-| `comment` | Enable PR comments. Set to `true`, `false`, or `{}` (object form for future options) |
+| `comment` | Enable PR comments and configure file table scope. Set to `true`, `false`, `{}`, or `{ files: all\|changed\|none }` (default `all`) |
 
 ### Codecov YAML Compatibility
 
@@ -442,10 +443,21 @@ coverage:
   ignore:
     - "tests/**"
 
-comment: true
+comment:
+  files: changed
 ```
 
 Both formats work identically—use whichever style you prefer.
+
+### PR Comment File List Mode
+
+Use `comment.files` to control the "Files with missing lines" section in PR comments:
+
+- `all` (default): show all files with missing/partial lines
+- `changed`: show only non-deleted files from the PR diff
+- `none`: hide the section entirely
+
+This setting only affects PR comments. Job Summary output remains unchanged.
 
 ## Permissions
 

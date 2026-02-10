@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as core from "@actions/core";
 import * as glob from "@actions/glob";
 import { PatchAnalyzer } from "./analyzers/patch-analyzer.js";
+import type { PatchCoverageResults } from "./analyzers/patch-analyzer.js";
 import { ThresholdChecker } from "./analyzers/threshold-checker.js";
 import { ConfigLoader } from "./config/config-loader.js";
 import { ReportFormatter } from "./formatters/report-formatter.js";
@@ -204,7 +205,10 @@ async function run() {
 
     // Process coverage if enabled
     let aggregatedCoverageResults = null;
+    let patchCoverage: PatchCoverageResults | null = null;
     let coverageChecksFailed = false;
+    const patchTargetForFormatter =
+      coverageConfig.targetPatch ?? coverageConfig.status?.patch.target ?? 80;
 
     if (enableCoverage) {
       aggregatedCoverageResults = await processCoverage(
@@ -220,7 +224,6 @@ async function run() {
         const statusReporter = new StatusReporter(token);
 
         // Calculate patch coverage if in PR context
-        let patchCoverage = null;
         if (githubClient.isPullRequest()) {
           try {
             core.info("🔍 Calculating patch coverage...");
@@ -290,10 +293,7 @@ async function run() {
 
         // Check patch status
         const patchConfig = {
-          target:
-            coverageConfig.targetPatch ??
-            coverageConfig.status?.patch.target ??
-            80,
+          target: patchTargetForFormatter,
           threshold: coverageConfig.status?.patch.threshold ?? null,
           informational: coverageConfig.status?.patch.informational ?? false,
         };
@@ -332,20 +332,35 @@ async function run() {
 
     // Generate report using the formatter
     const formatter = new ReportFormatter();
-    const reportBody = formatter.formatReport(
+    const summaryReportBody = formatter.formatReport(
       aggregatedTestResults || undefined,
-      aggregatedCoverageResults || undefined
+      aggregatedCoverageResults || undefined,
+      {
+        patchTarget: patchTargetForFormatter,
+      }
     );
 
     // Write Job Summary (always)
     core.info("📝 Writing Job Summary...");
-    await core.summary.addRaw(reportBody).write();
+    await core.summary.addRaw(summaryReportBody).write();
 
     // Optionally post PR comment if enabled (via config file or action input) and in PR context
     const shouldPostPrComment = coverageConfig.comment.enabled || postPrComment;
     if (shouldPostPrComment && githubClient.isPullRequest()) {
+      const prCommentBody = formatter.formatReport(
+        aggregatedTestResults || undefined,
+        aggregatedCoverageResults || undefined,
+        {
+          filesMode: coverageConfig.comment.files,
+          changedFiles:
+            coverageConfig.comment.files === "changed"
+              ? patchCoverage?.changedFiles || []
+              : undefined,
+          patchTarget: patchTargetForFormatter,
+        }
+      );
       core.info("📝 Posting results to PR comment...");
-      await githubClient.postOrUpdateComment(reportBody);
+      await githubClient.postOrUpdateComment(prCommentBody);
     }
 
     core.info("✅ Codecov Action completed successfully!");

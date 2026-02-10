@@ -3,12 +3,21 @@ import * as path from "node:path";
 import * as core from "@actions/core";
 import * as yaml from "js-yaml";
 import type {
+  CommentConfigObject,
+  CommentConfigInput,
+  CommentFilesMode,
   CodecovConfig,
   CoverageStatusConfig,
   NormalizedConfig,
 } from "../types/config.js";
 
 export class ConfigLoader {
+  private static readonly COMMENT_FILES_VALUES: Set<CommentFilesMode> = new Set([
+    "all",
+    "changed",
+    "none",
+  ]);
+
   /**
    * Load and parse configuration from .github/coverage.yml or .github/codecov.yml
    */
@@ -95,17 +104,45 @@ export class ConfigLoader {
   }
 
   /**
-   * Normalize comment config: boolean or object -> { enabled: boolean }
-   * - `comment: true` -> enabled
-   * - `comment: false` -> disabled
-   * - `comment: {}` -> enabled (object form for future properties)
-   * - Not specified -> disabled (falls back to action input)
+   * Normalize comment config to include enablement and file section mode.
+   * - `comment: true` -> enabled, files=all
+   * - `comment: false` -> disabled, files=all
+   * - `comment: {}` -> enabled, files=all
+   * - `comment: { files: changed|none|all }`
+   * - Not specified -> disabled, files=all (falls back to action input)
    */
-  private normalizeComment(comment?: boolean | object): { enabled: boolean } {
-    if (comment === undefined) return { enabled: false };
-    if (typeof comment === "boolean") return { enabled: comment };
+  private normalizeComment(comment?: CommentConfigInput): {
+    enabled: boolean;
+    files: CommentFilesMode;
+  } {
+    if (comment === undefined) return { enabled: false, files: "all" };
+    if (comment === null) return { enabled: true, files: "all" };
+    if (typeof comment === "boolean") return { enabled: comment, files: "all" };
     // Object form (empty or future props): treat as enabled
-    return { enabled: true };
+    const files = this.parseCommentFilesMode(
+      (comment as CommentConfigObject).files
+    );
+    return { enabled: true, files };
+  }
+
+  private parseCommentFilesMode(value: unknown): CommentFilesMode {
+    if (value === undefined) {
+      return "all";
+    }
+
+    if (
+      typeof value === "string" &&
+      ConfigLoader.COMMENT_FILES_VALUES.has(value as CommentFilesMode)
+    ) {
+      return value as CommentFilesMode;
+    }
+
+    core.warning(
+      `Invalid comment.files value "${String(
+        value
+      )}". Falling back to "all". Valid values: all, changed, none.`
+    );
+    return "all";
   }
 
   /**
