@@ -48,7 +48,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `token` | GitHub token for API access and artifacts | **Yes** | — |
-| `base-branch` | Base branch to compare results against | No | `main` |
+| `base-branch` | Base branch to compare results against | No | Auto-detected |
 | `enable-tests` | Enable test results reporting | No | `true` |
 | `enable-coverage` | Enable coverage reporting | No | `true` |
 | `post-pr-comment` | Post results as a PR comment | No | `false` |
@@ -87,7 +87,7 @@ When thresholds are not configured, status checks report coverage metrics withou
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `flags` | Comma-separated flags to tag coverage (e.g., `unittests,frontend`) | No | — |
-| `name` | Custom name for this coverage upload | No | — |
+| `name` | Custom name for this coverage upload. Also used to differentiate artifacts in matrix builds | No | — |
 
 ### Test Results
 
@@ -240,6 +240,35 @@ When thresholds are not configured, status checks report coverage metrics withou
     name: backend-coverage
 ```
 
+### Matrix Builds
+
+When running coverage in a matrix strategy (e.g., multiple Python versions), use the `name` input to give each matrix entry a unique artifact name and avoid upload conflicts:
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run tests
+        run: pytest --cov=src --cov-report=xml
+
+      - name: Codecov Action
+        uses: getsentry/codecov-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: coverage.xml
+          name: py${{ matrix.python-version }}
+```
+
 ### Coverage Thresholds with Status Checks
 
 Use built-in threshold enforcement with GitHub status checks:
@@ -278,15 +307,18 @@ Multiple coverage files are parsed and aggregated:
 ### 3. Artifact Storage
 
 Results are stored as GitHub Artifacts:
-- `coverage-results-{branch}` — Aggregated coverage data
-- `test-results-{branch}` — Aggregated test results
+- `codecov-coverage-results-{branch}[-{name}][-{flags}]` — Aggregated coverage data
+- `codecov-test-results-{branch}` — Aggregated test results
+
+When using the `name` input, it is appended to the artifact name to avoid conflicts in matrix builds.
 
 ### 4. Base Branch Comparison
 
 On PRs or feature branches:
-1. Downloads latest results from base branch
-2. Compares current vs baseline
-3. Calculates deltas
+1. Auto-detects the repository's default branch (or uses the explicit `base-branch` input)
+2. Downloads latest results from base branch
+3. Compares current vs baseline
+4. Calculates deltas
 
 ### 5. Reporting
 
@@ -468,6 +500,8 @@ permissions:
   pull-requests: write  # Post PR comments (if enabled)
   statuses: write       # Create commit status checks
 ```
+
+> **Note**: On pull requests from forks, `GITHUB_TOKEN` has restricted permissions regardless of the workflow's `permissions` block. PR comments and commit status checks will be skipped gracefully with a warning in this case. Coverage results and Job Summary are still generated.
 
 ## Migration from Codecov
 

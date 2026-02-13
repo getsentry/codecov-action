@@ -1,5 +1,11 @@
 minVersion: "2.21.2"
 changelog:
   policy: auto
+artifactProvider:
+  name: github
+  config:
+    artifacts:
+      Build & Test:
+        - action-package
 targets:
   - name: github
