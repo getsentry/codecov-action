@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write  # Required for posting/updating PR comments
+      statuses: write  # Required for reporting commit statuses
 
     steps:
       - name: Checkout
@@ -41,4 +42,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           post-pr-comment: true
           target-patch: 80
+          threshold-project: 1
           fail-on-error: true
