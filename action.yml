@@ -1,5 +1,8 @@
 name: Codecov Action
 description: Test results and coverage reporting for GitHub Actions with multi-format support
+branding:
+  icon: activity
+  color: red
 
 inputs:
   # Authentication
@@ -14,34 +17,34 @@ inputs:
   directory:
     description: Folder to search for coverage files. Defaults to current working directory
     required: false
-    default: '.'
+    default: "."
   exclude:
     description: Comma-separated list of folders/patterns to exclude from search
     required: false
 
   # Format handling
   coverage-format:
-    description: 'Coverage format hint (auto, clover, cobertura, jacoco, lcov, istanbul, go). Auto-detects if not specified'
+    description: "Coverage format hint (auto, clover, cobertura, jacoco, lcov, istanbul, go). Auto-detects if not specified"
     required: false
-    default: 'auto'
+    default: "auto"
   disable-search:
     description: Disable automatic search for coverage files. Use with "files" input
     required: false
-    default: 'false'
+    default: "false"
 
   # Behavior flags (Codecov-style)
   fail-ci-if-error:
     description: Exit with non-zero code if coverage processing fails
     required: false
-    default: 'false'
+    default: "false"
   handle-no-reports-found:
     description: Do not fail if no coverage reports are found
     required: false
-    default: 'false'
+    default: "false"
   verbose:
     description: Enable verbose logging for debugging
     required: false
-    default: 'false'
+    default: "false"
 
   # Grouping and identification (Codecov-style)
   flags:
@@ -60,25 +63,25 @@ inputs:
   junit-xml-pattern:
     description: Glob pattern for finding JUnit XML files
     required: false
-    default: './**/*.junit.xml'
+    default: "./**/*.junit.xml"
   enable-tests:
     description: Enable test results reporting
     required: false
-    default: 'true'
+    default: "true"
   enable-coverage:
     description: Enable coverage reporting
     required: false
-    default: 'true'
+    default: "true"
   post-pr-comment:
     description: Post results as a PR comment (in addition to Job Summary)
     required: false
-    default: 'false'
+    default: "false"
 
   # Threshold enforcement
   fail-on-error:
     description: Fail the CI job if coverage thresholds are not met
     required: false
-    default: 'false'
+    default: "false"
   target-project:
     description: "Target project coverage % (or 'auto' to use base branch coverage)"
     required: false
@@ -91,7 +94,7 @@ inputs:
 
   # Legacy input (deprecated, use 'files' or 'directory' instead)
   coverage-xml-pattern:
-    description: '[Deprecated] Glob pattern for finding coverage XML files. Use files/directory instead.'
+    description: "[Deprecated] Glob pattern for finding coverage XML files. Use files/directory instead."
     required: false
 
 outputs:
@@ -112,7 +115,7 @@ outputs:
     description: Number of tests that changed from failing to passing
   tests-broken:
     description: Number of tests that changed from passing to failing
-  
+
   # Coverage outputs
   line-coverage:
     description: Line coverage percentage
