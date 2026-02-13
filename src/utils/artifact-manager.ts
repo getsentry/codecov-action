@@ -40,20 +40,26 @@ export class ArtifactManager {
   private getArtifactName(
     branchName: string,
     type: "test" | "coverage" = "test",
-    flags?: string[]
+    flags?: string[],
+    name?: string
   ): string {
     const sanitized = this.sanitizeBranchName(branchName);
-    const baseName = `codecov-${type}-results-${sanitized}`;
+    let artifactName = `codecov-${type}-results-${sanitized}`;
+
+    // Add name suffix if provided (useful for matrix builds to avoid conflicts)
+    if (name) {
+      artifactName += `-${this.sanitizeBranchName(name)}`;
+    }
 
     // Add flag suffix if flags are provided
     if (flags && flags.length > 0) {
       const flagSuffix = flags
         .map((f) => this.sanitizeBranchName(f))
         .join("-");
-      return `${baseName}-${flagSuffix}`;
+      artifactName += `-${flagSuffix}`;
     }
 
-    return baseName;
+    return artifactName;
   }
 
   /**
@@ -101,14 +107,16 @@ export class ArtifactManager {
    * @param results The coverage results to upload
    * @param branchName The branch name for the artifact
    * @param flags Optional flags to tag this coverage upload
+   * @param name Optional name to differentiate uploads (e.g., in matrix builds)
    */
   async uploadCoverageResults(
     results: AggregatedCoverageResults,
     branchName: string,
-    flags?: string[]
+    flags?: string[],
+    name?: string
   ): Promise<void> {
     try {
-      const artifactName = this.getArtifactName(branchName, "coverage", flags);
+      const artifactName = this.getArtifactName(branchName, "coverage", flags, name);
       core.info(`📤 Uploading coverage results as artifact: ${artifactName}`);
 
       if (flags && flags.length > 0) {
@@ -233,23 +241,26 @@ export class ArtifactManager {
    * Download coverage results from a base branch artifact using GitHub API
    * @param baseBranch The base branch to download from
    * @param flags Optional flags to match specific flagged coverage
+   * @param name Optional name to match specific named coverage (e.g., from matrix builds)
    */
   async downloadBaseCoverageResults(
     baseBranch: string,
-    flags?: string[]
+    flags?: string[],
+    name?: string
   ): Promise<AggregatedCoverageResults | null> {
     try {
-      // First try to find flagged artifact if flags are provided
+      // First try to find flagged/named artifact, then fall back to unflagged/unnamed
       const flaggedArtifactName = this.getArtifactName(
         baseBranch,
         "coverage",
-        flags
+        flags,
+        name
       );
       const unflaggedArtifactName = this.getArtifactName(baseBranch, "coverage");
 
       const artifactNamesToTry =
-        flags && flags.length > 0
-          ? [flaggedArtifactName, unflaggedArtifactName] // Try flagged first, then unflagged
+        flaggedArtifactName !== unflaggedArtifactName
+          ? [flaggedArtifactName, unflaggedArtifactName] // Try specific first, then unflagged
           : [unflaggedArtifactName];
 
       core.info(
