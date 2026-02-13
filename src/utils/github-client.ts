@@ -90,8 +90,29 @@ export class GitHubClient {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      core.error(`Failed to post/update PR comment: ${message}`);
-      throw new Error(`GitHub API error: ${message}`);
+      core.warning(
+        `Failed to post/update PR comment: ${message}`
+      );
+      // Don't throw - comment posting failure shouldn't fail the action
+      // This commonly happens on fork PRs where GITHUB_TOKEN has limited permissions
+    }
+  }
+
+  /**
+   * Get the repository's default branch name via the GitHub API
+   */
+  async getDefaultBranch(): Promise<string> {
+    try {
+      const { owner, repo } = this.context.repo;
+      const { data } = await this.octokit.rest.repos.get({ owner, repo });
+      return data.default_branch;
+    } catch (error) {
+      core.warning(
+        `Failed to detect default branch, falling back to 'main': ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return "main";
     }
   }
 

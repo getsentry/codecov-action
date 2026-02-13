@@ -156,7 +156,7 @@ async function run() {
     const junitPattern =
       core.getInput("junit-xml-pattern") || "./**/*.junit.xml";
     const token = core.getInput("token");
-    const baseBranch = core.getInput("base-branch") || "main";
+    const baseBranchInput = core.getInput("base-branch");
     const enableTests = core.getBooleanInput("enable-tests") !== false;
     const enableCoverage = core.getBooleanInput("enable-coverage") !== false;
     const postPrComment = core.getBooleanInput("post-pr-comment") === true;
@@ -175,14 +175,23 @@ async function run() {
       core.info(`Coverage config: ${JSON.stringify(coverageConfig, null, 2)}`);
     }
 
-    core.info(`Base branch for comparison: ${baseBranch}`);
-
     // Initialize GitHub client
     const githubClient = new GitHubClient(token);
     const contextInfo = githubClient.getContextInfo();
     core.info(
       `Context: ${contextInfo.eventName} in ${contextInfo.owner}/${contextInfo.repo}`
     );
+
+    // Determine base branch: use explicit input, or auto-detect the repo's default branch
+    let baseBranch: string;
+    if (baseBranchInput) {
+      baseBranch = baseBranchInput;
+    } else {
+      baseBranch = await githubClient.getDefaultBranch();
+      core.info(`Auto-detected default branch: ${baseBranch}`);
+    }
+
+    core.info(`Base branch for comparison: ${baseBranch}`);
 
     // Log context info
     core.info(`Post PR comment: ${postPrComment}`);
@@ -719,18 +728,20 @@ async function processCoverage(
     `  Methods: ${aggregatedResults.coveredMethods}/${aggregatedResults.totalMethods}`
   );
 
-  // Upload current coverage as artifact (with flags for separate storage)
-  await artifactManager.uploadCoverageResults(
-    aggregatedResults,
-    currentBranch,
-    flags.length > 0 ? flags : undefined
-  );
+    // Upload current coverage as artifact (with flags/name for separate storage)
+    await artifactManager.uploadCoverageResults(
+      aggregatedResults,
+      currentBranch,
+      flags.length > 0 ? flags : undefined,
+      name || undefined
+    );
 
-  // Download and compare with base branch coverage (flag-aware)
-  const baseCoverage = await artifactManager.downloadBaseCoverageResults(
-    baseBranch,
-    flags.length > 0 ? flags : undefined
-  );
+    // Download and compare with base branch coverage (flag/name-aware)
+    const baseCoverage = await artifactManager.downloadBaseCoverageResults(
+      baseBranch,
+      flags.length > 0 ? flags : undefined,
+      name || undefined
+    );
   if (baseCoverage) {
     core.info("🔍 Comparing with base branch coverage...");
     const comparison = CoverageComparator.compareResults(

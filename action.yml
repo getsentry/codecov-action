@@ -53,9 +53,8 @@ inputs:
 
   # Comparison settings
   base-branch:
-    description: Base branch to compare results against
+    description: "Base branch to compare results against. Auto-detects the repo's default branch if not specified"
     required: false
-    default: 'main'
 
   # Test results
   junit-xml-pattern:
