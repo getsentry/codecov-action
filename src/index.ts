@@ -39,6 +39,7 @@ interface CoverageConfig {
   // Config from .github/coverage.yml
   status?: NormalizedConfig["status"];
   comment: NormalizedConfig["comment"];
+  config: NormalizedConfig["config"];
   // Threshold overrides from inputs
   failOnError: boolean;
   targetProject?: number | "auto";
@@ -134,6 +135,7 @@ async function getCoverageConfig(): Promise<CoverageConfig> {
     name,
     status: yamlConfig.status,
     comment: yamlConfig.comment,
+    config: yamlConfig.config,
     failOnError,
     targetProject,
     thresholdProject,
@@ -341,12 +343,19 @@ async function run() {
 
     // Generate report using the formatter
     const formatter = new ReportFormatter();
+    const reportOptions: import("./formatters/report-formatter.js").ReportFormatOptions = {
+      filesMode: coverageConfig.config.files,
+      changedFiles:
+        coverageConfig.config.files === "changed"
+          ? patchCoverage?.changedFiles || []
+          : undefined,
+      patchTarget: patchTargetForFormatter,
+    };
+
     const summaryReportBody = formatter.formatReport(
       aggregatedTestResults || undefined,
       aggregatedCoverageResults || undefined,
-      {
-        patchTarget: patchTargetForFormatter,
-      }
+      reportOptions
     );
 
     // Write Job Summary (always)
@@ -359,14 +368,7 @@ async function run() {
       const prCommentBody = formatter.formatReport(
         aggregatedTestResults || undefined,
         aggregatedCoverageResults || undefined,
-        {
-          filesMode: coverageConfig.comment.files,
-          changedFiles:
-            coverageConfig.comment.files === "changed"
-              ? patchCoverage?.changedFiles || []
-              : undefined,
-          patchTarget: patchTargetForFormatter,
-        }
+        reportOptions
       );
       core.info("📝 Posting results to PR comment...");
       await githubClient.postOrUpdateComment(prCommentBody);
