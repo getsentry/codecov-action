@@ -1,13 +1,13 @@
 # Codecov Action
 
-![CI](https://github.com/getsentry/codecov-action/actions/workflows/main.yml/badge.svg)
+![build](https://github.com/getsentry/codecov-action/actions/workflows/build.yml/badge.svg)
 
 Self-hosted coverage and test reporting with GitHub Actions. Uses GitHub Artifacts for storage — no external service or Codecov token required.
 
 ## Quick Start
 
 ```yaml
-name: CI
+name: Test
 
 on:
   push:
@@ -442,7 +442,10 @@ coverage:
     - "**/fixtures/**"
 
 # Enable PR comments from config (alternative to post-pr-comment input)
-comment:
+comment: true
+
+# Report display settings
+config:
   files: changed   # all (default) | changed | none
 ```
 
@@ -454,7 +457,8 @@ comment:
 | `status.patch.target` | Target coverage % for changed lines |
 | `status.patch.informational` | When `true`, patch status check is advisory-only |
 | `ignore` | Glob patterns to exclude from coverage calculations |
-| `comment` | Enable PR comments and configure file table scope. Set to `true`, `false`, `{}`, or `{ files: all\|changed\|none }` (default `all`) |
+| `comment` | Enable PR comments. Set to `true` or `false` |
+| `config.files` | Control file table scope in reports (Job Summary + PR comments). Values: `all` (default), `changed`, `none` |
 
 ### Codecov YAML Compatibility
 
@@ -475,21 +479,21 @@ coverage:
   ignore:
     - "tests/**"
 
-comment:
+comment: true
+
+config:
   files: changed
 ```
 
 Both formats work identically—use whichever style you prefer.
 
-### PR Comment File List Mode
+### Report File List Mode
 
-Use `comment.files` to control the "Files with missing lines" section in PR comments:
+Use `config.files` to control the "Files with missing lines" section in both Job Summary and PR comments:
 
 - `all` (default): show all files with missing/partial lines
 - `changed`: show only non-deleted files from the PR diff
 - `none`: hide the section entirely
-
-This setting only affects PR comments. Job Summary output remains unchanged.
 
 ## Permissions
 

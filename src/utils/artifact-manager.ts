@@ -41,7 +41,7 @@ export class ArtifactManager {
     branchName: string,
     type: "test" | "coverage" = "test",
     flags?: string[],
-    name?: string
+    name?: string,
   ): string {
     const sanitized = this.sanitizeBranchName(branchName);
     let artifactName = `codecov-${type}-results-${sanitized}`;
@@ -53,9 +53,7 @@ export class ArtifactManager {
 
     // Add flag suffix if flags are provided
     if (flags && flags.length > 0) {
-      const flagSuffix = flags
-        .map((f) => this.sanitizeBranchName(f))
-        .join("-");
+      const flagSuffix = flags.map((f) => this.sanitizeBranchName(f)).join("-");
       artifactName += `-${flagSuffix}`;
     }
 
@@ -67,7 +65,7 @@ export class ArtifactManager {
    */
   async uploadResults(
     results: AggregatedTestResults,
-    branchName: string
+    branchName: string,
   ): Promise<void> {
     try {
       const artifactName = this.getArtifactName(branchName, "test");
@@ -85,11 +83,11 @@ export class ArtifactManager {
       const uploadResult = await this.artifactClient.uploadArtifact(
         artifactName,
         [resultsFile],
-        tmpDir
+        tmpDir,
       );
 
       core.info(
-        `✅ Test artifact uploaded successfully. ID: ${uploadResult.id}`
+        `✅ Test artifact uploaded successfully. ID: ${uploadResult.id}`,
       );
 
       // Clean up temporary file
@@ -113,10 +111,15 @@ export class ArtifactManager {
     results: AggregatedCoverageResults,
     branchName: string,
     flags?: string[],
-    name?: string
+    name?: string,
   ): Promise<void> {
     try {
-      const artifactName = this.getArtifactName(branchName, "coverage", flags, name);
+      const artifactName = this.getArtifactName(
+        branchName,
+        "coverage",
+        flags,
+        name,
+      );
       core.info(`📤 Uploading coverage results as artifact: ${artifactName}`);
 
       if (flags && flags.length > 0) {
@@ -125,7 +128,7 @@ export class ArtifactManager {
 
       // Create a temporary directory for the artifact
       const tmpDir = fs.mkdtempSync(
-        path.join(os.tmpdir(), "codecov-coverage-")
+        path.join(os.tmpdir(), "codecov-coverage-"),
       );
       const resultsFile = path.join(tmpDir, "coverage-results.json");
 
@@ -138,11 +141,11 @@ export class ArtifactManager {
       const uploadResult = await this.artifactClient.uploadArtifact(
         artifactName,
         [resultsFile],
-        tmpDir
+        tmpDir,
       );
 
       core.info(
-        `✅ Coverage artifact uploaded successfully. ID: ${uploadResult.id}`
+        `✅ Coverage artifact uploaded successfully. ID: ${uploadResult.id}`,
       );
 
       // Clean up temporary file
@@ -159,7 +162,7 @@ export class ArtifactManager {
    * Download test results from a base branch artifact using GitHub API
    */
   async downloadBaseResults(
-    baseBranch: string
+    baseBranch: string,
   ): Promise<AggregatedTestResults | null> {
     try {
       const artifactName = this.getArtifactName(baseBranch, "test");
@@ -177,7 +180,7 @@ export class ArtifactManager {
 
       if (workflowRuns.data.workflow_runs.length === 0) {
         core.info(
-          `ℹ️ No successful workflow runs found for branch '${baseBranch}'`
+          `ℹ️ No successful workflow runs found for branch '${baseBranch}'`,
         );
         return null;
       }
@@ -192,7 +195,7 @@ export class ArtifactManager {
           });
 
         const artifact = artifacts.data.artifacts.find(
-          (a) => a.name === artifactName && !a.expired
+          (a) => a.name === artifactName && !a.expired,
         );
 
         if (artifact) {
@@ -208,7 +211,7 @@ export class ArtifactManager {
 
           // Create temp directory and save the zip
           const tmpDir = fs.mkdtempSync(
-            path.join(os.tmpdir(), "codecov-base-test-")
+            path.join(os.tmpdir(), "codecov-base-test-"),
           );
           const zipPath = path.join(tmpDir, "artifact.zip");
 
@@ -227,7 +230,7 @@ export class ArtifactManager {
       }
 
       core.info(
-        `ℹ️ No artifact '${artifactName}' found in recent workflow runs`
+        `ℹ️ No artifact '${artifactName}' found in recent workflow runs`,
       );
       return null;
     } catch (error) {
@@ -246,7 +249,7 @@ export class ArtifactManager {
   async downloadBaseCoverageResults(
     baseBranch: string,
     flags?: string[],
-    name?: string
+    name?: string,
   ): Promise<AggregatedCoverageResults | null> {
     try {
       // First try to find flagged/named artifact, then fall back to unflagged/unnamed
@@ -254,9 +257,12 @@ export class ArtifactManager {
         baseBranch,
         "coverage",
         flags,
-        name
+        name,
       );
-      const unflaggedArtifactName = this.getArtifactName(baseBranch, "coverage");
+      const unflaggedArtifactName = this.getArtifactName(
+        baseBranch,
+        "coverage",
+      );
 
       const artifactNamesToTry =
         flaggedArtifactName !== unflaggedArtifactName
@@ -264,7 +270,7 @@ export class ArtifactManager {
           : [unflaggedArtifactName];
 
       core.info(
-        `📥 Attempting to download base coverage results: ${artifactNamesToTry[0]}`
+        `📥 Attempting to download base coverage results: ${artifactNamesToTry[0]}`,
       );
 
       if (flags && flags.length > 0) {
@@ -283,7 +289,7 @@ export class ArtifactManager {
 
       if (workflowRuns.data.workflow_runs.length === 0) {
         core.info(
-          `ℹ️ No successful workflow runs found for branch '${baseBranch}'`
+          `ℹ️ No successful workflow runs found for branch '${baseBranch}'`,
         );
         return null;
       }
@@ -300,12 +306,12 @@ export class ArtifactManager {
         // Try to find artifact with each name in order of preference
         for (const artifactName of artifactNamesToTry) {
           const artifact = artifacts.data.artifacts.find(
-            (a) => a.name === artifactName && !a.expired
+            (a) => a.name === artifactName && !a.expired,
           );
 
           if (artifact) {
             core.info(
-              `Found coverage artifact '${artifactName}' from run #${run.run_number}`
+              `Found coverage artifact '${artifactName}' from run #${run.run_number}`,
             );
 
             // Download the artifact
@@ -318,14 +324,14 @@ export class ArtifactManager {
 
             // Create temp directory and save the zip
             const tmpDir = fs.mkdtempSync(
-              path.join(os.tmpdir(), "codecov-base-coverage-")
+              path.join(os.tmpdir(), "codecov-base-coverage-"),
             );
             const zipPath = path.join(tmpDir, "artifact.zip");
 
             // The download is a buffer, write it to file
             fs.writeFileSync(
               zipPath,
-              Buffer.from(download.data as ArrayBuffer)
+              Buffer.from(download.data as ArrayBuffer),
             );
 
             // Extract and read the coverage results
@@ -341,7 +347,7 @@ export class ArtifactManager {
       }
 
       core.info(
-        `ℹ️ No artifact '${artifactNamesToTry[0]}' found in recent workflow runs`
+        `ℹ️ No artifact '${artifactNamesToTry[0]}' found in recent workflow runs`,
       );
       return null;
     } catch (error) {
@@ -356,7 +362,7 @@ export class ArtifactManager {
    */
   private extractAndReadResults(
     zipPath: string,
-    extractDir: string
+    extractDir: string,
   ): AggregatedTestResults | null {
     try {
       const zip = new AdmZip(zipPath);
@@ -386,7 +392,7 @@ export class ArtifactManager {
    */
   private extractAndReadCoverageResults(
     zipPath: string,
-    extractDir: string
+    extractDir: string,
   ): AggregatedCoverageResults | null {
     try {
       const zip = new AdmZip(zipPath);
@@ -396,7 +402,7 @@ export class ArtifactManager {
 
       if (!fs.existsSync(resultsFile)) {
         core.warning(
-          "Downloaded artifact does not contain coverage-results.json"
+          "Downloaded artifact does not contain coverage-results.json",
         );
         return null;
       }
@@ -405,7 +411,7 @@ export class ArtifactManager {
       const results = JSON.parse(resultsContent) as AggregatedCoverageResults;
 
       core.info(
-        "✅ Base coverage results downloaded and extracted successfully"
+        "✅ Base coverage results downloaded and extracted successfully",
       );
       return results;
     } catch (error) {

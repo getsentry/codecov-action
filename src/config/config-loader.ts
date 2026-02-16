@@ -3,8 +3,6 @@ import * as path from "node:path";
 import * as core from "@actions/core";
 import * as yaml from "js-yaml";
 import type {
-  CommentConfigObject,
-  CommentConfigInput,
   CommentFilesMode,
   CodecovConfig,
   CoverageStatusConfig,
@@ -12,7 +10,7 @@ import type {
 } from "../types/config.js";
 
 export class ConfigLoader {
-  private static readonly COMMENT_FILES_VALUES: Set<CommentFilesMode> = new Set([
+  private static readonly FILES_VALUES: Set<CommentFilesMode> = new Set([
     "all",
     "changed",
     "none",
@@ -44,7 +42,7 @@ export class ConfigLoader {
       core.debug("No configuration file found");
     }
 
-    return this.normalizeConfig(config);
+    return this.normalizeFullConfig(config);
   }
 
   /**
@@ -73,13 +71,6 @@ export class ConfigLoader {
 
   /**
    * Extract config from either direct or nested "default" form (Codecov-style)
-   * Supports both:
-   *   project:
-   *     target: 80
-   * and:
-   *   project:
-   *     default:
-   *       target: 80
    */
   private extractStatusConfig(raw: unknown): Partial<CoverageStatusConfig> {
     if (!raw || typeof raw !== "object") return {};
@@ -104,41 +95,35 @@ export class ConfigLoader {
   }
 
   /**
-   * Normalize comment config to include enablement and file section mode.
-   * - `comment: true` -> enabled, files=all
-   * - `comment: false` -> disabled, files=all
-   * - `comment: {}` -> enabled, files=all
-   * - `comment: { files: changed|none|all }`
-   * - Not specified -> disabled, files=all (falls back to action input)
+   * Normalize comment config to a simple enabled boolean.
+   * - `comment: true` -> enabled
+   * - `comment: false` -> disabled
+   * - `comment: null` -> enabled
+   * - Not specified -> disabled (falls back to action input)
    */
-  private normalizeComment(comment?: CommentConfigInput): {
-    enabled: boolean;
-    files: CommentFilesMode;
-  } {
-    if (comment === undefined) return { enabled: false, files: "all" };
-    if (comment === null) return { enabled: true, files: "all" };
-    if (typeof comment === "boolean") return { enabled: comment, files: "all" };
-    // Object form (empty or future props): treat as enabled
-    const files = this.parseCommentFilesMode(
-      (comment as CommentConfigObject).files
-    );
-    return { enabled: true, files };
+  private normalizeComment(comment?: boolean): { enabled: boolean } {
+    if (comment === undefined) return { enabled: false };
+    if (comment === null) return { enabled: true };
+    return { enabled: comment };
   }
 
-  private parseCommentFilesMode(value: unknown): CommentFilesMode {
+  /**
+   * Parse the config.files value
+   */
+  private parseFilesMode(value: unknown): CommentFilesMode {
     if (value === undefined) {
       return "all";
     }
 
     if (
       typeof value === "string" &&
-      ConfigLoader.COMMENT_FILES_VALUES.has(value as CommentFilesMode)
+      ConfigLoader.FILES_VALUES.has(value as CommentFilesMode)
     ) {
       return value as CommentFilesMode;
     }
 
     core.warning(
-      `Invalid comment.files value "${String(
+      `Invalid config.files value "${String(
         value
       )}". Falling back to "all". Valid values: all, changed, none.`
     );
@@ -148,11 +133,10 @@ export class ConfigLoader {
   /**
    * Normalize configuration with defaults
    */
-  private normalizeConfig(config: CodecovConfig): NormalizedConfig {
+  private normalizeFullConfig(config: CodecovConfig): NormalizedConfig {
     const coverage = config.coverage || {};
     const status = coverage.status || {};
 
-    // Support both direct and nested "default" key (Codecov-style)
     const projectRaw = status.project || {};
     const project = this.extractStatusConfig(projectRaw);
     const patchRaw = status.patch || {};
@@ -166,13 +150,16 @@ export class ConfigLoader {
           informational: project.informational ?? false,
         },
         patch: {
-          target: typeof patch.target === "number" ? patch.target : 80, // Default 80% for patch
+          target: typeof patch.target === "number" ? patch.target : 80,
           threshold: this.parseThreshold(patch.threshold),
           informational: patch.informational ?? false,
         },
       },
       ignore: coverage.ignore || [],
       comment: this.normalizeComment(config.comment),
+      config: {
+        files: this.parseFilesMode(config.config?.files),
+      },
     };
   }
 }

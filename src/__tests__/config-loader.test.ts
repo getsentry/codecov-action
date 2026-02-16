@@ -25,7 +25,7 @@ describe("ConfigLoader", () => {
     expect(config.status.patch.informational).toBe(false);
     expect(config.ignore).toEqual([]);
     expect(config.comment.enabled).toBe(false);
-    expect(config.comment.files).toBe("all");
+    expect(config.config.files).toBe("all");
   });
 
   it("should parse valid yaml config", async () => {
@@ -220,7 +220,6 @@ comment: true
       const config = await loader.loadConfig();
 
       expect(config.comment.enabled).toBe(true);
-      expect(config.comment.files).toBe("all");
     });
 
     it("should parse comment: false", async () => {
@@ -233,20 +232,6 @@ comment: false
       const config = await loader.loadConfig();
 
       expect(config.comment.enabled).toBe(false);
-      expect(config.comment.files).toBe("all");
-    });
-
-    it("should parse comment: {} as enabled", async () => {
-      const yaml = `
-comment: {}
-`;
-      vi.spyOn(fs, "existsSync").mockReturnValue(true);
-      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
-
-      const config = await loader.loadConfig();
-
-      expect(config.comment.enabled).toBe(true);
-      expect(config.comment.files).toBe("all");
     });
 
     it("should handle comment: null without crashing", async () => {
@@ -259,7 +244,6 @@ comment: null
       const config = await loader.loadConfig();
 
       expect(config.comment.enabled).toBe(true);
-      expect(config.comment.files).toBe("all");
     });
 
     it("should default comment to disabled when not specified", async () => {
@@ -275,12 +259,21 @@ coverage:
       const config = await loader.loadConfig();
 
       expect(config.comment.enabled).toBe(false);
-      expect(config.comment.files).toBe("all");
+    });
+  });
+
+  describe("config section", () => {
+    it("should default config.files to all when not specified", async () => {
+      vi.spyOn(fs, "existsSync").mockReturnValue(false);
+
+      const config = await loader.loadConfig();
+
+      expect(config.config.files).toBe("all");
     });
 
-    it("should parse comment.files changed", async () => {
+    it("should parse config.files changed", async () => {
       const yaml = `
-comment:
+config:
   files: changed
 `;
       vi.spyOn(fs, "existsSync").mockReturnValue(true);
@@ -288,13 +281,12 @@ comment:
 
       const config = await loader.loadConfig();
 
-      expect(config.comment.enabled).toBe(true);
-      expect(config.comment.files).toBe("changed");
+      expect(config.config.files).toBe("changed");
     });
 
-    it("should parse comment.files none", async () => {
+    it("should parse config.files none", async () => {
       const yaml = `
-comment:
+config:
   files: none
 `;
       vi.spyOn(fs, "existsSync").mockReturnValue(true);
@@ -302,13 +294,25 @@ comment:
 
       const config = await loader.loadConfig();
 
-      expect(config.comment.enabled).toBe(true);
-      expect(config.comment.files).toBe("none");
+      expect(config.config.files).toBe("none");
     });
 
-    it("should fallback to all for invalid comment.files value", async () => {
+    it("should parse config.files all", async () => {
       const yaml = `
-comment:
+config:
+  files: all
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.config.files).toBe("all");
+    });
+
+    it("should fallback to all for invalid config.files value", async () => {
+      const yaml = `
+config:
   files: bad
 `;
       vi.spyOn(fs, "existsSync").mockReturnValue(true);
@@ -319,10 +323,9 @@ comment:
 
       const config = await loader.loadConfig();
 
-      expect(config.comment.enabled).toBe(true);
-      expect(config.comment.files).toBe("all");
+      expect(config.config.files).toBe("all");
       expect(warningSpy).toHaveBeenCalledWith(
-        'Invalid comment.files value "bad". Falling back to "all". Valid values: all, changed, none.'
+        'Invalid config.files value "bad". Falling back to "all". Valid values: all, changed, none.'
       );
     });
   });
