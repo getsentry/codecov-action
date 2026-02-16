@@ -35,7 +35,9 @@ export class ArtifactManager {
   }
 
   /**
-   * Generate artifact name for a branch
+   * Generate artifact name for a branch.
+   * Includes GITHUB_JOB to avoid conflicts when multiple jobs in the same
+   * workflow run invoke the action.
    */
   private getArtifactName(
     branchName: string,
@@ -44,7 +46,10 @@ export class ArtifactManager {
     name?: string,
   ): string {
     const sanitized = this.sanitizeBranchName(branchName);
-    let artifactName = `codecov-${type}-results-${sanitized}`;
+    const jobId = process.env.GITHUB_JOB
+      ? `-${this.sanitizeBranchName(process.env.GITHUB_JOB)}`
+      : "";
+    let artifactName = `codecov-${type}-results-${sanitized}${jobId}`;
 
     // Add name suffix if provided (useful for matrix builds to avoid conflicts)
     if (name) {
@@ -52,6 +57,31 @@ export class ArtifactManager {
     }
 
     // Add flag suffix if flags are provided
+    if (flags && flags.length > 0) {
+      const flagSuffix = flags.map((f) => this.sanitizeBranchName(f)).join("-");
+      artifactName += `-${flagSuffix}`;
+    }
+
+    return artifactName;
+  }
+
+  /**
+   * Generate artifact name WITHOUT the job ID suffix (for backwards-compatible
+   * fallback when downloading from older workflow runs).
+   */
+  private getLegacyArtifactName(
+    branchName: string,
+    type: "test" | "coverage" = "test",
+    flags?: string[],
+    name?: string,
+  ): string {
+    const sanitized = this.sanitizeBranchName(branchName);
+    let artifactName = `codecov-${type}-results-${sanitized}`;
+
+    if (name) {
+      artifactName += `-${this.sanitizeBranchName(name)}`;
+    }
+
     if (flags && flags.length > 0) {
       const flagSuffix = flags.map((f) => this.sanitizeBranchName(f)).join("-");
       artifactName += `-${flagSuffix}`;
@@ -166,7 +196,15 @@ export class ArtifactManager {
   ): Promise<AggregatedTestResults | null> {
     try {
       const artifactName = this.getArtifactName(baseBranch, "test");
-      core.info(`📥 Attempting to download base test results: ${artifactName}`);
+      const legacyArtifactName = this.getLegacyArtifactName(baseBranch, "test");
+
+      // Try current name first, then legacy (without job ID) for backwards compat
+      const artifactNamesToTry =
+        artifactName !== legacyArtifactName
+          ? [artifactName, legacyArtifactName]
+          : [artifactName];
+
+      core.info(`📥 Attempting to download base test results: ${artifactNamesToTry[0]}`);
 
       // Find the latest successful workflow run on the base branch
       const workflowRuns =
@@ -194,43 +232,45 @@ export class ArtifactManager {
             run_id: run.id,
           });
 
-        const artifact = artifacts.data.artifacts.find(
-          (a) => a.name === artifactName && !a.expired,
-        );
-
-        if (artifact) {
-          core.info(`Found test artifact from run #${run.run_number}`);
-
-          // Download the artifact
-          const download = await this.octokit.rest.actions.downloadArtifact({
-            owner: this.owner,
-            repo: this.repo,
-            artifact_id: artifact.id,
-            archive_format: "zip",
-          });
-
-          // Create temp directory and save the zip
-          const tmpDir = fs.mkdtempSync(
-            path.join(os.tmpdir(), "codecov-base-test-"),
+        for (const nameToTry of artifactNamesToTry) {
+          const artifact = artifacts.data.artifacts.find(
+            (a) => a.name === nameToTry && !a.expired,
           );
-          const zipPath = path.join(tmpDir, "artifact.zip");
 
-          // The download is a buffer, write it to file
-          fs.writeFileSync(zipPath, Buffer.from(download.data as ArrayBuffer));
+          if (artifact) {
+            core.info(`Found test artifact '${nameToTry}' from run #${run.run_number}`);
 
-          // Extract and read the results
-          const results = this.extractAndReadResults(zipPath, tmpDir);
+            // Download the artifact
+            const download = await this.octokit.rest.actions.downloadArtifact({
+              owner: this.owner,
+              repo: this.repo,
+              artifact_id: artifact.id,
+              archive_format: "zip",
+            });
 
-          // Clean up
-          fs.unlinkSync(zipPath);
-          fs.rmSync(tmpDir, { recursive: true });
+            // Create temp directory and save the zip
+            const tmpDir = fs.mkdtempSync(
+              path.join(os.tmpdir(), "codecov-base-test-"),
+            );
+            const zipPath = path.join(tmpDir, "artifact.zip");
 
-          return results;
+            // The download is a buffer, write it to file
+            fs.writeFileSync(zipPath, Buffer.from(download.data as ArrayBuffer));
+
+            // Extract and read the results
+            const results = this.extractAndReadResults(zipPath, tmpDir);
+
+            // Clean up
+            fs.unlinkSync(zipPath);
+            fs.rmSync(tmpDir, { recursive: true });
+
+            return results;
+          }
         }
       }
 
       core.info(
-        `ℹ️ No artifact '${artifactName}' found in recent workflow runs`,
+        `ℹ️ No artifact '${artifactNamesToTry[0]}' found in recent workflow runs`,
       );
       return null;
     } catch (error) {
@@ -252,22 +292,34 @@ export class ArtifactManager {
     name?: string,
   ): Promise<AggregatedCoverageResults | null> {
     try {
-      // First try to find flagged/named artifact, then fall back to unflagged/unnamed
+      // Build a list of artifact names to try, in order of preference:
+      // 1. Flagged/named with job ID (current format)
+      // 2. Unflagged with job ID
+      // 3. Flagged/named without job ID (legacy format)
+      // 4. Unflagged without job ID (legacy format)
       const flaggedArtifactName = this.getArtifactName(
         baseBranch,
         "coverage",
         flags,
         name,
       );
-      const unflaggedArtifactName = this.getArtifactName(
+      const unflaggedArtifactName = this.getArtifactName(baseBranch, "coverage");
+      const legacyFlaggedArtifactName = this.getLegacyArtifactName(
         baseBranch,
         "coverage",
+        flags,
+        name,
       );
+      const legacyUnflaggedArtifactName = this.getLegacyArtifactName(baseBranch, "coverage");
 
-      const artifactNamesToTry =
-        flaggedArtifactName !== unflaggedArtifactName
-          ? [flaggedArtifactName, unflaggedArtifactName] // Try specific first, then unflagged
-          : [unflaggedArtifactName];
+      const artifactNamesToTry = [
+        ...new Set([
+          flaggedArtifactName,
+          unflaggedArtifactName,
+          legacyFlaggedArtifactName,
+          legacyUnflaggedArtifactName,
+        ]),
+      ];
 
       core.info(
         `📥 Attempting to download base coverage results: ${artifactNamesToTry[0]}`,
