@@ -343,10 +343,16 @@ async function run() {
 
     // Generate report using the formatter
     const formatter = new ReportFormatter();
+    // Fall back to "all" on the base branch since there's no diff to filter by
+    const effectiveFilesMode =
+      coverageConfig.config.files === "changed" && currentBranch === baseBranch
+        ? "all"
+        : coverageConfig.config.files;
+
     const reportOptions: import("./formatters/report-formatter.js").ReportFormatOptions = {
-      filesMode: coverageConfig.config.files,
+      filesMode: effectiveFilesMode,
       changedFiles:
-        coverageConfig.config.files === "changed"
+        effectiveFilesMode === "changed"
           ? patchCoverage?.changedFiles || []
           : undefined,
       patchTarget: patchTargetForFormatter,
