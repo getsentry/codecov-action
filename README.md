@@ -1,13 +1,13 @@
 # Codecov Action
 
-![CI](https://github.com/getsentry/codecov-action/actions/workflows/main.yml/badge.svg)
+![build](https://github.com/getsentry/codecov-action/actions/workflows/build.yml/badge.svg)
 
 Self-hosted coverage and test reporting with GitHub Actions. Uses GitHub Artifacts for storage — no external service or Codecov token required.
 
 ## Quick Start
 
 ```yaml
-name: CI
+name: Test
 
 on:
   push:
