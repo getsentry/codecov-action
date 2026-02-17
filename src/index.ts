@@ -210,7 +210,8 @@ async function run() {
         junitPattern,
         artifactManager,
         currentBranch,
-        baseBranch
+        baseBranch,
+        coverageConfig.name || undefined
       );
     }
 
@@ -399,7 +400,8 @@ async function processTestResults(
   junitPattern: string,
   artifactManager: ArtifactManager,
   currentBranch: string,
-  baseBranch: string
+  baseBranch: string,
+  name?: string
 ) {
   core.info("📊 Processing test results...");
 
@@ -462,10 +464,10 @@ async function processTestResults(
   core.info(`  Pass Rate: ${aggregatedResults.passRate}%`);
 
   // Upload current results as artifact
-  await artifactManager.uploadResults(aggregatedResults, currentBranch);
+  await artifactManager.uploadResults(aggregatedResults, currentBranch, name);
 
   // Download and compare with base branch results
-  const baseResults = await artifactManager.downloadBaseResults(baseBranch);
+  const baseResults = await artifactManager.downloadBaseResults(baseBranch, name);
   if (baseResults) {
     core.info("🔍 Comparing with base branch test results...");
     const comparison = TestResultsComparator.compareResults(

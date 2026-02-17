@@ -96,9 +96,10 @@ export class ArtifactManager {
   async uploadResults(
     results: AggregatedTestResults,
     branchName: string,
+    name?: string,
   ): Promise<void> {
     try {
-      const artifactName = this.getArtifactName(branchName, "test");
+      const artifactName = this.getArtifactName(branchName, "test", undefined, name);
       core.info(`📤 Uploading test results as artifact: ${artifactName}`);
 
       // Create a temporary directory for the artifact
@@ -193,16 +194,22 @@ export class ArtifactManager {
    */
   async downloadBaseResults(
     baseBranch: string,
+    name?: string,
   ): Promise<AggregatedTestResults | null> {
     try {
-      const artifactName = this.getArtifactName(baseBranch, "test");
-      const legacyArtifactName = this.getLegacyArtifactName(baseBranch, "test");
+      const artifactName = this.getArtifactName(baseBranch, "test", undefined, name);
+      const legacyArtifactName = this.getLegacyArtifactName(baseBranch, "test", undefined, name);
+      const unflaggedArtifactName = this.getArtifactName(baseBranch, "test");
+      const legacyUnflaggedArtifactName = this.getLegacyArtifactName(baseBranch, "test");
 
-      // Try current name first, then legacy (without job ID) for backwards compat
-      const artifactNamesToTry =
-        artifactName !== legacyArtifactName
-          ? [artifactName, legacyArtifactName]
-          : [artifactName];
+      const artifactNamesToTry = [
+        ...new Set([
+          artifactName,
+          unflaggedArtifactName,
+          legacyArtifactName,
+          legacyUnflaggedArtifactName,
+        ]),
+      ];
 
       core.info(`📥 Attempting to download base test results: ${artifactNamesToTry[0]}`);
 
