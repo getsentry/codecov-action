@@ -284,11 +284,13 @@ async function run() {
         );
 
         // Report project status
-        await statusReporter.reportStatus(
-          "codecov/project",
-          projectStatus.status,
-          projectStatus.description,
-        );
+        if (coverageConfig.status?.project.enabled !== false) {
+          await statusReporter.reportStatus(
+            "codecov/project",
+            projectStatus.status,
+            projectStatus.description,
+          );
+        }
 
         if (projectStatus.status === "failure") {
           if (projectStatus.informational) {
@@ -320,11 +322,13 @@ async function run() {
         );
 
         // Report patch status
-        await statusReporter.reportStatus(
-          "codecov/patch",
-          patchStatus.status,
-          patchStatus.description,
-        );
+        if (coverageConfig.status?.patch.enabled !== false) {
+          await statusReporter.reportStatus(
+            "codecov/patch",
+            patchStatus.status,
+            patchStatus.description,
+          );
+        }
 
         // Check if patch status should fail the build
         if (patchStatus.status === "failure") {

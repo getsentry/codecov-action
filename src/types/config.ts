@@ -9,6 +9,7 @@ export interface CoverageStatusConfig {
   target?: number | "auto";
   threshold?: number | string | null;
   informational?: boolean;
+  enabled?: boolean;
 }
 
 /**
@@ -42,11 +43,13 @@ export interface NormalizedConfig {
       target: number | "auto";
       threshold: number | null;
       informational: boolean;
+      enabled: boolean;
     };
     patch: {
       target: number;
       threshold: number | null;
       informational: boolean;
+      enabled: boolean;
     };
   };
   ignore: string[];
