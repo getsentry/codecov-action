@@ -155,8 +155,8 @@ function verboseLog(message: string, verbose: boolean): void {
 async function run() {
   try {
     // Get inputs
-    const junitPattern =
-      core.getInput("junit-xml-pattern") || "./**/*.junit.xml";
+    const junitPatternInput =
+      core.getInput("junit-xml-pattern") || "**/*.junit.xml";
     const token = core.getInput("token");
     const baseBranchInput = core.getInput("base-branch");
     const enableTests = core.getBooleanInput("enable-tests") !== false;
@@ -168,7 +168,7 @@ async function run() {
 
     if (!token) {
       throw new Error(
-        "GitHub token is required. Please provide 'token' input."
+        "GitHub token is required. Please provide 'token' input.",
       );
     }
 
@@ -181,7 +181,7 @@ async function run() {
     const githubClient = new GitHubClient(token);
     const contextInfo = githubClient.getContextInfo();
     core.info(
-      `Context: ${contextInfo.eventName} in ${contextInfo.owner}/${contextInfo.repo}`
+      `Context: ${contextInfo.eventName} in ${contextInfo.owner}/${contextInfo.repo}`,
     );
 
     // Determine base branch: use explicit input, or auto-detect the repo's default branch
@@ -206,12 +206,16 @@ async function run() {
     // Process test results if enabled
     let aggregatedTestResults = null;
     if (enableTests) {
+      const junitPattern = path.join(
+        coverageConfig.directory,
+        junitPatternInput,
+      );
       aggregatedTestResults = await processTestResults(
         junitPattern,
         artifactManager,
         currentBranch,
         baseBranch,
-        coverageConfig.name || undefined
+        coverageConfig.name || undefined,
       );
     }
 
@@ -227,7 +231,7 @@ async function run() {
         coverageConfig,
         artifactManager,
         currentBranch,
-        baseBranch
+        baseBranch,
       );
 
       // Run threshold checks if coverage results are available
@@ -242,13 +246,13 @@ async function run() {
             const diffContent = await githubClient.getPrDiff();
             patchCoverage = PatchAnalyzer.analyzePatchCoverage(
               diffContent,
-              aggregatedCoverageResults
+              aggregatedCoverageResults,
             );
 
             // Set patch coverage output
             core.setOutput(
               "patch-coverage",
-              patchCoverage.percentage.toString()
+              patchCoverage.percentage.toString(),
             );
 
             // Enrich aggregated results with patch coverage for the formatter
@@ -276,30 +280,30 @@ async function run() {
         core.info("🔍 Checking project coverage thresholds...");
         const projectStatus = ThresholdChecker.checkProjectStatus(
           aggregatedCoverageResults,
-          projectConfig
+          projectConfig,
         );
 
         // Report project status
         await statusReporter.reportStatus(
           "codecov/project",
           projectStatus.status,
-          projectStatus.description
+          projectStatus.description,
         );
 
         if (projectStatus.status === "failure") {
           if (projectStatus.informational) {
             core.info(
-              `ℹ️ Project coverage check failed (informational): ${projectStatus.description}`
+              `ℹ️ Project coverage check failed (informational): ${projectStatus.description}`,
             );
           } else {
             core.warning(
-              `❌ Project coverage check failed: ${projectStatus.description}`
+              `❌ Project coverage check failed: ${projectStatus.description}`,
             );
             coverageChecksFailed = true;
           }
         } else {
           core.info(
-            `✅ Project coverage check passed: ${projectStatus.description}`
+            `✅ Project coverage check passed: ${projectStatus.description}`,
           );
         }
 
@@ -312,31 +316,31 @@ async function run() {
 
         const patchStatus = ThresholdChecker.checkPatchStatus(
           patchCoverage,
-          patchConfig
+          patchConfig,
         );
 
         // Report patch status
         await statusReporter.reportStatus(
           "codecov/patch",
           patchStatus.status,
-          patchStatus.description
+          patchStatus.description,
         );
 
         // Check if patch status should fail the build
         if (patchStatus.status === "failure") {
           if (patchStatus.informational) {
             core.info(
-              `ℹ️ Patch coverage check failed (informational): ${patchStatus.description}`
+              `ℹ️ Patch coverage check failed (informational): ${patchStatus.description}`,
             );
           } else {
             core.warning(
-              `❌ Patch coverage check failed: ${patchStatus.description}`
+              `❌ Patch coverage check failed: ${patchStatus.description}`,
             );
             coverageChecksFailed = true;
           }
         } else {
           core.info(
-            `✅ Patch coverage check passed: ${patchStatus.description}`
+            `✅ Patch coverage check passed: ${patchStatus.description}`,
           );
         }
       }
@@ -350,19 +354,20 @@ async function run() {
         ? "all"
         : coverageConfig.config.files;
 
-    const reportOptions: import("./formatters/report-formatter.js").ReportFormatOptions = {
-      filesMode: effectiveFilesMode,
-      changedFiles:
-        effectiveFilesMode === "changed"
-          ? patchCoverage?.changedFiles || []
-          : undefined,
-      patchTarget: patchTargetForFormatter,
-    };
+    const reportOptions: import("./formatters/report-formatter.js").ReportFormatOptions =
+      {
+        filesMode: effectiveFilesMode,
+        changedFiles:
+          effectiveFilesMode === "changed"
+            ? patchCoverage?.changedFiles || []
+            : undefined,
+        patchTarget: patchTargetForFormatter,
+      };
 
     const summaryReportBody = formatter.formatReport(
       aggregatedTestResults || undefined,
       aggregatedCoverageResults || undefined,
-      reportOptions
+      reportOptions,
     );
 
     // Write Job Summary (always)
@@ -375,7 +380,7 @@ async function run() {
       const prCommentBody = formatter.formatReport(
         aggregatedTestResults || undefined,
         aggregatedCoverageResults || undefined,
-        reportOptions
+        reportOptions,
       );
       core.info("📝 Posting results to PR comment...");
       await githubClient.postOrUpdateComment(prCommentBody);
@@ -401,7 +406,7 @@ async function processTestResults(
   artifactManager: ArtifactManager,
   currentBranch: string,
   baseBranch: string,
-  name?: string
+  name?: string,
 ) {
   core.info("📊 Processing test results...");
 
@@ -412,7 +417,7 @@ async function processTestResults(
   if (files.length === 0) {
     core.warning(`No JUnit XML files found matching pattern: ${junitPattern}`);
     core.warning(
-      "Please ensure your test framework is generating JUnit XML output."
+      "Please ensure your test framework is generating JUnit XML output.",
     );
     core.setOutput("total-tests", "0");
     core.setOutput("passed-tests", "0");
@@ -467,12 +472,15 @@ async function processTestResults(
   await artifactManager.uploadResults(aggregatedResults, currentBranch, name);
 
   // Download and compare with base branch results
-  const baseResults = await artifactManager.downloadBaseResults(baseBranch, name);
+  const baseResults = await artifactManager.downloadBaseResults(
+    baseBranch,
+    name,
+  );
   if (baseResults) {
     core.info("🔍 Comparing with base branch test results...");
     const comparison = TestResultsComparator.compareResults(
       baseResults,
-      aggregatedResults
+      aggregatedResults,
     );
     aggregatedResults.comparison = comparison;
 
@@ -481,17 +489,17 @@ async function processTestResults(
     core.info(
       `  Total Tests: ${comparison.deltaTotal >= 0 ? "+" : ""}${
         comparison.deltaTotal
-      }`
+      }`,
     );
     core.info(
       `  Passed Tests: ${comparison.deltaPassed >= 0 ? "+" : ""}${
         comparison.deltaPassed
-      }`
+      }`,
     );
     core.info(
       `  Failed Tests: ${comparison.deltaFailed >= 0 ? "+" : ""}${
         comparison.deltaFailed
-      }`
+      }`,
     );
     core.info(`  Tests Added: ${comparison.testsAdded.length}`);
     core.info(`  Tests Removed: ${comparison.testsRemoved.length}`);
@@ -541,7 +549,7 @@ async function findCoverageFiles(config: CoverageConfig): Promise<string[]> {
   // Auto-discover coverage files
   verboseLog(
     `Searching for coverage files in directory: ${directory}`,
-    verbose
+    verbose,
   );
 
   // Default patterns for common coverage files
@@ -562,7 +570,7 @@ async function findCoverageFiles(config: CoverageConfig): Promise<string[]> {
   const legacyPattern = core.getInput("coverage-xml-pattern");
   if (legacyPattern) {
     core.warning(
-      "The 'coverage-xml-pattern' input is deprecated. Please use 'files' or 'directory' instead."
+      "The 'coverage-xml-pattern' input is deprecated. Please use 'files' or 'directory' instead.",
     );
     verboseLog(`Using legacy coverage-xml-pattern: ${legacyPattern}`, verbose);
     const globber = await glob.create(legacyPattern, {
@@ -597,7 +605,7 @@ async function processCoverage(
   config: CoverageConfig,
   artifactManager: ArtifactManager,
   currentBranch: string,
-  baseBranch: string
+  baseBranch: string,
 ) {
   const { format, failCiIfError, handleNoReportsFound, verbose, flags, name } =
     config;
@@ -625,8 +633,8 @@ async function processCoverage(
     if (!handleNoReportsFound) {
       core.warning(
         `Supported formats: ${CoverageParserFactory.getSupportedFormats().join(
-          ", "
-        )}`
+          ", ",
+        )}`,
       );
     }
     // Set default outputs for no reports case
@@ -683,7 +691,7 @@ async function processCoverage(
       const result = await CoverageParserFactory.parseContent(
         content,
         file,
-        format
+        format,
       );
       allResults.push(result);
 
@@ -729,34 +737,34 @@ async function processCoverage(
   core.info(`  Line Coverage: ${aggregatedResults.lineRate}%`);
   core.info(`  Branch Coverage: ${aggregatedResults.branchRate}%`);
   core.info(
-    `  Statements: ${aggregatedResults.coveredStatements}/${aggregatedResults.totalStatements}`
+    `  Statements: ${aggregatedResults.coveredStatements}/${aggregatedResults.totalStatements}`,
   );
   core.info(
-    `  Conditionals: ${aggregatedResults.coveredConditionals}/${aggregatedResults.totalConditionals}`
+    `  Conditionals: ${aggregatedResults.coveredConditionals}/${aggregatedResults.totalConditionals}`,
   );
   core.info(
-    `  Methods: ${aggregatedResults.coveredMethods}/${aggregatedResults.totalMethods}`
+    `  Methods: ${aggregatedResults.coveredMethods}/${aggregatedResults.totalMethods}`,
   );
 
-    // Upload current coverage as artifact (with flags/name for separate storage)
-    await artifactManager.uploadCoverageResults(
-      aggregatedResults,
-      currentBranch,
-      flags.length > 0 ? flags : undefined,
-      name || undefined
-    );
+  // Upload current coverage as artifact (with flags/name for separate storage)
+  await artifactManager.uploadCoverageResults(
+    aggregatedResults,
+    currentBranch,
+    flags.length > 0 ? flags : undefined,
+    name || undefined,
+  );
 
-    // Download and compare with base branch coverage (flag/name-aware)
-    const baseCoverage = await artifactManager.downloadBaseCoverageResults(
-      baseBranch,
-      flags.length > 0 ? flags : undefined,
-      name || undefined
-    );
+  // Download and compare with base branch coverage (flag/name-aware)
+  const baseCoverage = await artifactManager.downloadBaseCoverageResults(
+    baseBranch,
+    flags.length > 0 ? flags : undefined,
+    name || undefined,
+  );
   if (baseCoverage) {
     core.info("🔍 Comparing with base branch coverage...");
     const comparison = CoverageComparator.compareResults(
       baseCoverage,
-      aggregatedResults
+      aggregatedResults,
     );
     aggregatedResults.comparison = comparison;
 
@@ -765,25 +773,25 @@ async function processCoverage(
     core.info(
       `  Line Coverage: ${comparison.deltaLineRate >= 0 ? "+" : ""}${
         comparison.deltaLineRate
-      }%`
+      }%`,
     );
     core.info(
       `  Branch Coverage: ${comparison.deltaBranchRate >= 0 ? "+" : ""}${
         comparison.deltaBranchRate
-      }%`
+      }%`,
     );
     core.info(`  Files Added: ${comparison.filesAdded.length}`);
     core.info(`  Files Removed: ${comparison.filesRemoved.length}`);
     core.info(`  Files Changed: ${comparison.filesChanged.length}`);
     core.info(
-      `  Overall Improvement: ${comparison.improvement ? "Yes" : "No"}`
+      `  Overall Improvement: ${comparison.improvement ? "Yes" : "No"}`,
     );
 
     // Set comparison outputs
     core.setOutput("coverage-change", comparison.deltaLineRate.toString());
     core.setOutput(
       "branch-coverage-change",
-      comparison.deltaBranchRate.toString()
+      comparison.deltaBranchRate.toString(),
     );
     core.setOutput("coverage-improved", comparison.improvement.toString());
   } else {
