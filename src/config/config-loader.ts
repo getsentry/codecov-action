@@ -35,7 +35,7 @@ export class ConfigLoader {
         core.warning(
           `Failed to load configuration file: ${
             error instanceof Error ? error.message : String(error)
-          }`
+          }`,
         );
       }
     } else {
@@ -75,7 +75,11 @@ export class ConfigLoader {
   private extractStatusConfig(raw: unknown): Partial<CoverageStatusConfig> {
     if (!raw || typeof raw !== "object") return {};
     const obj = raw as Record<string, unknown>;
-    if ("default" in obj && typeof obj.default === "object" && obj.default !== null) {
+    if (
+      "default" in obj &&
+      typeof obj.default === "object" &&
+      obj.default !== null
+    ) {
       return obj.default as Partial<CoverageStatusConfig>;
     }
     return obj as Partial<CoverageStatusConfig>;
@@ -124,8 +128,8 @@ export class ConfigLoader {
 
     core.warning(
       `Invalid config.files value "${String(
-        value
-      )}". Falling back to "all". Valid values: all, changed, none.`
+        value,
+      )}". Falling back to "all". Valid values: all, changed, none.`,
     );
     return "all";
   }
@@ -148,11 +152,13 @@ export class ConfigLoader {
           target: project.target ?? "auto",
           threshold: this.parseThreshold(project.threshold),
           informational: project.informational ?? false,
+          enabled: project.enabled ?? true,
         },
         patch: {
           target: typeof patch.target === "number" ? patch.target : 80,
           threshold: this.parseThreshold(patch.threshold),
           informational: patch.informational ?? false,
+          enabled: patch.enabled ?? true,
         },
       },
       ignore: coverage.ignore || [],
