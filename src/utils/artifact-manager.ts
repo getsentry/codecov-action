@@ -151,23 +151,42 @@ export class ArtifactManager {
    * Download test results from a base branch artifact using GitHub API
    */
   async downloadBaseResults(
-    baseBranch: string
+    baseBranch: string,
+    baseSha?: string
   ): Promise<AggregatedTestResults | null> {
     try {
       const artifactName = this.getArtifactName(baseBranch, "test");
       core.info(`📥 Attempting to download base test results: ${artifactName}`);
 
-      // Find the latest successful workflow run on the base branch
-      const workflowRuns =
-        await this.octokit.rest.actions.listWorkflowRunsForRepo({
+      let workflowRuns = [];
+      if (baseSha) {
+        core.info(`   Looking for specific commit SHA: ${baseSha}`);
+        const shaRuns = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+          owner: this.owner,
+          repo: this.repo,
+          head_sha: baseSha,
+          status: "success",
+          per_page: 10,
+        });
+        workflowRuns = shaRuns.data.workflow_runs;
+      }
+
+      if (workflowRuns.length === 0) {
+        if (baseSha) {
+          core.info(`ℹ️ No successful workflow runs found for SHA '${baseSha}'. Falling back to branch '${baseBranch}'`);
+        }
+        // Find the latest successful workflow run on the base branch
+        const branchRuns = await this.octokit.rest.actions.listWorkflowRunsForRepo({
           owner: this.owner,
           repo: this.repo,
           branch: baseBranch,
           status: "success",
           per_page: 10,
         });
+        workflowRuns = branchRuns.data.workflow_runs;
+      }
 
-      if (workflowRuns.data.workflow_runs.length === 0) {
+      if (workflowRuns.length === 0) {
         core.info(
           `ℹ️ No successful workflow runs found for branch '${baseBranch}'`
         );
@@ -175,7 +194,7 @@ export class ArtifactManager {
       }
 
       // Look through recent runs for the artifact
-      for (const run of workflowRuns.data.workflow_runs) {
+      for (const run of workflowRuns) {
         const artifacts =
           await this.octokit.rest.actions.listWorkflowRunArtifacts({
             owner: this.owner,
@@ -233,10 +252,12 @@ export class ArtifactManager {
    * Download coverage results from a base branch artifact using GitHub API
    * @param baseBranch The base branch to download from
    * @param flags Optional flags to match specific flagged coverage
+   * @param baseSha Optional specific commit SHA to look for
    */
   async downloadBaseCoverageResults(
     baseBranch: string,
-    flags?: string[]
+    flags?: string[],
+    baseSha?: string
   ): Promise<AggregatedCoverageResults | null> {
     try {
       // First try to find flagged artifact if flags are provided
@@ -260,17 +281,35 @@ export class ArtifactManager {
         core.info(`   Looking for flags: ${flags.join(", ")}`);
       }
 
-      // Find the latest successful workflow run on the base branch
-      const workflowRuns =
-        await this.octokit.rest.actions.listWorkflowRunsForRepo({
+      let workflowRuns = [];
+      if (baseSha) {
+        core.info(`   Looking for specific commit SHA: ${baseSha}`);
+        const shaRuns = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+          owner: this.owner,
+          repo: this.repo,
+          head_sha: baseSha,
+          status: "success",
+          per_page: 10,
+        });
+        workflowRuns = shaRuns.data.workflow_runs;
+      }
+
+      if (workflowRuns.length === 0) {
+        if (baseSha) {
+          core.info(`ℹ️ No successful workflow runs found for SHA '${baseSha}'. Falling back to branch '${baseBranch}'`);
+        }
+        // Find the latest successful workflow run on the base branch
+        const branchRuns = await this.octokit.rest.actions.listWorkflowRunsForRepo({
           owner: this.owner,
           repo: this.repo,
           branch: baseBranch,
           status: "success",
           per_page: 10,
         });
+        workflowRuns = branchRuns.data.workflow_runs;
+      }
 
-      if (workflowRuns.data.workflow_runs.length === 0) {
+      if (workflowRuns.length === 0) {
         core.info(
           `ℹ️ No successful workflow runs found for branch '${baseBranch}'`
         );
@@ -278,7 +317,7 @@ export class ArtifactManager {
       }
 
       // Look through recent runs for the artifact
-      for (const run of workflowRuns.data.workflow_runs) {
+      for (const run of workflowRuns) {
         const artifacts =
           await this.octokit.rest.actions.listWorkflowRunArtifacts({
             owner: this.owner,
