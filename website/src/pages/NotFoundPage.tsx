@@ -1,10 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Home } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function NotFoundPage() {
   return (
-    <div className="container mx-auto p-6 flex items-center justify-center min-h-screen">
+    <div className="mx-auto max-w-7xl px-6 flex flex-1 items-center justify-center py-16">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -12,28 +13,34 @@ export default function NotFoundPage() {
             <CardTitle>Page Not Found</CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground mb-4">
-            The page you're looking for doesn't exist or the repository cannot be found.
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            The page you're looking for doesn't exist or the repository cannot
+            be found.
           </p>
           <p className="text-sm text-muted-foreground">
             To view a repository's coverage dashboard, navigate to:
           </p>
-          <code className="block mt-2 p-2 bg-muted rounded text-sm">
+          <code className="block p-2 bg-muted rounded text-sm">
             /:owner/:repo
           </code>
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="text-sm text-muted-foreground">
             Example:{" "}
-            <Link 
-              to="/mathuraditya724/codecov-action" 
+            <Link
+              to="/getsentry/codecov-action"
               className="text-primary hover:underline"
             >
-              /mathuraditya724/codecov-action
+              /getsentry/codecov-action
             </Link>
           </p>
+          <Button asChild variant="outline" className="w-full">
+            <Link to="/">
+              <Home className="h-4 w-4 mr-2" />
+              Back to Home
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
-

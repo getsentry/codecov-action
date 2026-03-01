@@ -1,19 +1,18 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { subDays } from "date-fns";
+import { Activity, AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Activity } from "lucide-react";
 import { BranchSelector } from "../components/BranchSelector";
-import { TimeRangeFilter } from "../components/TimeRangeFilter";
-import { TokenButton } from "../components/TokenButton";
-import { StatCard } from "../components/StatCard";
 import { CoverageChart } from "../components/CoverageChart";
-import { TestResultsChart } from "../components/TestResultsChart";
 import { RunsTable } from "../components/RunsTable";
-import { useBranches } from "../hooks/useBranches";
+import { StatCard } from "../components/StatCard";
+import { TestResultsChart } from "../components/TestResultsChart";
+import { TimeRangeFilter } from "../components/TimeRangeFilter";
 import { useArtifacts } from "../hooks/useArtifacts";
+import { useBranches } from "../hooks/useBranches";
 import { githubService } from "../services/githubAPI";
 import type { TimeRange } from "../types";
 
@@ -27,8 +26,16 @@ export default function DashboardPage() {
   });
   const [repoExists, setRepoExists] = useState<boolean | null>(null);
 
-  const { branches, loading: branchesLoading, error: branchesError } = useBranches(org, repo);
-  const { data, loading: dataLoading, error: dataError } = useArtifacts(org, repo, selectedBranch, timeRange);
+  const {
+    branches,
+    loading: branchesLoading,
+    error: branchesError,
+  } = useBranches(org, repo);
+  const {
+    data,
+    loading: dataLoading,
+    error: dataError,
+  } = useArtifacts(org, repo, selectedBranch, timeRange);
 
   // Check if repository exists
   useEffect(() => {
@@ -40,7 +47,7 @@ export default function DashboardPage() {
 
       const exists = await githubService.checkRepository(org, repo);
       setRepoExists(exists);
-      
+
       if (!exists) {
         // Redirect to 404 if repo doesn't exist
         setTimeout(() => navigate("/404", { replace: true }), 2000);
@@ -52,9 +59,13 @@ export default function DashboardPage() {
 
   // Update selected branch when branches are loaded
   useEffect(() => {
-    if (branches.length > 0 && !branches.find(b => b.name === selectedBranch)) {
+    if (
+      branches.length > 0 &&
+      !branches.find((b) => b.name === selectedBranch)
+    ) {
       // If "main" doesn't exist, try "master"
-      const defaultBranch = branches.find(b => b.name === "master") || branches[0];
+      const defaultBranch =
+        branches.find((b) => b.name === "master") || branches[0];
       setSelectedBranch(defaultBranch.name);
     }
   }, [branches, selectedBranch]);
@@ -63,7 +74,10 @@ export default function DashboardPage() {
   const latestData = data.length > 0 ? data[data.length - 1] : null;
   const previousData = data.length > 1 ? data[data.length - 2] : null;
 
-  const getStatTrend = (current: number | undefined, previous: number | undefined) => {
+  const getStatTrend = (
+    current: number | undefined,
+    previous: number | undefined,
+  ) => {
     if (!current || !previous) return undefined;
     const diff = current - previous;
     return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
@@ -71,7 +85,7 @@ export default function DashboardPage() {
 
   if (repoExists === false) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Repository Not Found</AlertTitle>
@@ -85,7 +99,7 @@ export default function DashboardPage() {
 
   if (branchesLoading || repoExists === null) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         <Skeleton className="h-12 w-64 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {[...Array(4)].map((_, i) => (
@@ -103,7 +117,7 @@ export default function DashboardPage() {
 
   if (branchesError) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Repository</AlertTitle>
@@ -114,25 +128,21 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="mx-auto max-w-7xl px-6 py-8">
       {/* Header */}
-      <header className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Activity className="h-8 w-8" />
-            <h1 className="text-3xl font-bold">
-              {org}/{repo}
-            </h1>
+      <header className="mb-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {org}/{repo}
+          </h1>
+          <div className="flex items-center gap-3">
+            <BranchSelector
+              branches={branches}
+              value={selectedBranch}
+              onChange={setSelectedBranch}
+            />
+            <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
           </div>
-          <TokenButton />
-        </div>
-        <div className="flex flex-wrap gap-4 mt-4">
-          <BranchSelector
-            branches={branches}
-            value={selectedBranch}
-            onChange={setSelectedBranch}
-          />
-          <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
         </div>
       </header>
 
@@ -154,9 +164,10 @@ export default function DashboardPage() {
           <AlertTitle>Error Loading Data</AlertTitle>
           <AlertDescription>
             {dataError}
-            {dataError.includes("401") || dataError.includes("authentication") ? (
+            {dataError.includes("401") ||
+            dataError.includes("authentication") ? (
               <span className="block mt-2">
-                Click the "Setup Token" button in the top-right corner to authenticate.
+                Click the "Setup Token" button in the header to authenticate.
               </span>
             ) : null}
           </AlertDescription>
@@ -169,41 +180,70 @@ export default function DashboardPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
-            No workflow runs with codecov artifacts found for branch "{selectedBranch}" in the selected time range.
-            Make sure the codecov action is set up and has run successfully.
+            No workflow runs with codecov artifacts found for branch "
+            {selectedBranch}" in the selected time range. Make sure the codecov
+            action is set up and has run successfully.
           </AlertDescription>
         </Alert>
       )}
 
       {/* Stats Overview */}
       {latestData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             title="Line Coverage"
-            value={latestData.coverage ? `${latestData.coverage.lineRate.toFixed(1)}%` : "N/A"}
-            trend={getStatTrend(latestData.coverage?.lineRate, previousData?.coverage?.lineRate)}
+            value={
+              latestData.coverage
+                ? `${latestData.coverage.lineRate.toFixed(1)}%`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.coverage?.lineRate,
+              previousData?.coverage?.lineRate,
+            )}
           />
           <StatCard
             title="Branch Coverage"
-            value={latestData.coverage ? `${latestData.coverage.branchRate.toFixed(1)}%` : "N/A"}
-            trend={getStatTrend(latestData.coverage?.branchRate, previousData?.coverage?.branchRate)}
+            value={
+              latestData.coverage
+                ? `${latestData.coverage.branchRate.toFixed(1)}%`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.coverage?.branchRate,
+              previousData?.coverage?.branchRate,
+            )}
           />
           <StatCard
             title="Tests Passed"
-            value={latestData.tests ? `${latestData.tests.passed}/${latestData.tests.total}` : "N/A"}
-            trend={getStatTrend(latestData.tests?.passed, previousData?.tests?.passed)}
+            value={
+              latestData.tests
+                ? `${latestData.tests.passed}/${latestData.tests.total}`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.tests?.passed,
+              previousData?.tests?.passed,
+            )}
           />
           <StatCard
             title="Pass Rate"
-            value={latestData.tests ? `${latestData.tests.passRate.toFixed(1)}%` : "N/A"}
-            trend={getStatTrend(latestData.tests?.passRate, previousData?.tests?.passRate)}
+            value={
+              latestData.tests
+                ? `${latestData.tests.passRate.toFixed(1)}%`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.tests?.passRate,
+              previousData?.tests?.passRate,
+            )}
           />
         </div>
       )}
 
       {/* Charts */}
       {data.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
               <CardTitle>Coverage Over Time</CardTitle>
@@ -238,4 +278,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
