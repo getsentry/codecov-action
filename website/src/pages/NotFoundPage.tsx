@@ -77,17 +77,6 @@ export default function NotFoundPage() {
                 </Link>
               </Button>
             </div>
-
-            {/* Example */}
-            <p className="text-xs text-center text-muted-foreground pt-1">
-              Try an example:{" "}
-              <Link
-                to="/getsentry/codecov-action"
-                className="text-primary hover:underline"
-              >
-                getsentry/codecov-action
-              </Link>
-            </p>
           </CardContent>
         </Card>
 
