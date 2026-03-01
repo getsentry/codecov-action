@@ -31,11 +31,6 @@ export interface Branch {
   };
 }
 
-export interface TimeRange {
-  start: Date;
-  end: Date;
-}
-
 export interface ParsedArtifact {
   tests?: {
     totalTests: number;
@@ -56,4 +51,3 @@ export interface ParsedArtifact {
     coveredMethods: number;
   };
 }
-
