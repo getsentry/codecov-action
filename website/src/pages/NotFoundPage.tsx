@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Home, Key, Lock, Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -8,6 +9,7 @@ import { TokenSetup } from "../components/TokenSetup";
 import { githubService } from "../services/githubAPI";
 
 export default function NotFoundPage() {
+  const queryClient = useQueryClient();
   const [showSetup, setShowSetup] = useState(false);
   const hasToken = githubService.hasToken();
 
@@ -84,6 +86,7 @@ export default function NotFoundPage() {
           open={showSetup}
           onOpenChange={setShowSetup}
           onTokenSaved={() => {
+            queryClient.invalidateQueries();
             toast.success(
               "Token saved — try navigating to the repository again",
             );

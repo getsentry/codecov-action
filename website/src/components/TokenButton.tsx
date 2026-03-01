@@ -1,4 +1,7 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle, Key, LogOut } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -6,34 +9,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Key, LogOut, CheckCircle } from "lucide-react";
 import { githubService } from "../services/githubAPI";
 import { TokenSetup } from "./TokenSetup";
-import { toast } from "sonner";
 
 export function TokenButton() {
+  const queryClient = useQueryClient();
   const [hasToken, setHasToken] = useState(githubService.hasToken());
   const [showSetup, setShowSetup] = useState(false);
 
   const handleRemoveToken = () => {
     githubService.removeToken();
     setHasToken(false);
-    toast.success("Token removed successfully");
+    queryClient.invalidateQueries();
+    toast.success("Token removed — data will be refetched");
   };
 
   const handleTokenSaved = () => {
     setHasToken(true);
-    toast.success("Token saved successfully");
+    queryClient.invalidateQueries();
+    toast.success("Token saved — refetching data");
   };
 
   if (!hasToken) {
     return (
       <>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowSetup(true)}
-        >
+        <Button variant="outline" size="sm" onClick={() => setShowSetup(true)}>
           <Key className="h-4 w-4 mr-2" />
           Setup Token
         </Button>
@@ -74,4 +74,3 @@ export function TokenButton() {
     </>
   );
 }
-
