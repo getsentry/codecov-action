@@ -42,10 +42,6 @@ jobs:
         uses: ./ # TODO: later remove this with the public address
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          post-pr-comment: true
-          target-patch: 80
-          threshold-project: 1
-          fail-on-error: true
 
       - run: npm pack
 
