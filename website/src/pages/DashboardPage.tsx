@@ -1,77 +1,124 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { subDays } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, AlertCircle } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Activity } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BranchSelector } from "../components/BranchSelector";
-import { TimeRangeFilter } from "../components/TimeRangeFilter";
-import { TokenButton } from "../components/TokenButton";
-import { StatCard } from "../components/StatCard";
 import { CoverageChart } from "../components/CoverageChart";
-import { TestResultsChart } from "../components/TestResultsChart";
+import { DashboardContentSkeleton } from "../components/DashboardSkeleton";
 import { RunsTable } from "../components/RunsTable";
-import { useBranches } from "../hooks/useBranches";
+import { StatCard } from "../components/StatCard";
+import { TestResultsChart } from "../components/TestResultsChart";
+import { TimeRangeFilter } from "../components/TimeRangeFilter";
 import { useArtifacts } from "../hooks/useArtifacts";
-import { githubService } from "../services/githubAPI";
-import type { TimeRange } from "../types";
+import { useBranches } from "../hooks/useBranches";
+import { githubService, type RepoInfo } from "../services/githubAPI";
+
+const VALID_DAYS = new Set([7, 30, 90, 365]);
+const DEFAULT_DAYS = 7;
+
+function parseDays(value: string | null): number {
+  if (!value) return DEFAULT_DAYS;
+  const n = Number.parseInt(value, 10);
+  return VALID_DAYS.has(n) ? n : DEFAULT_DAYS;
+}
 
 export default function DashboardPage() {
   const { org, repo } = useParams<{ org: string; repo: string }>();
   const navigate = useNavigate();
-  const [selectedBranch, setSelectedBranch] = useState("main");
-  const [timeRange, setTimeRange] = useState<TimeRange>({
-    start: subDays(new Date(), 30),
-    end: new Date(),
-  });
-  const [repoExists, setRepoExists] = useState<boolean | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { branches, loading: branchesLoading, error: branchesError } = useBranches(org, repo);
-  const { data, loading: dataLoading, error: dataError } = useArtifacts(org, repo, selectedBranch, timeRange);
+  // Read state from URL search params
+  const branchParam = searchParams.get("branch");
+  const days = parseDays(searchParams.get("days"));
 
-  // Check if repository exists
-  useEffect(() => {
-    async function checkRepo() {
-      if (!org || !repo) {
-        setRepoExists(false);
-        return;
-      }
+  // Helpers to update URL params without losing the other param
+  const setBranch = useCallback(
+    (branch: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("branch", branch);
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
 
-      const exists = await githubService.checkRepository(org, repo);
-      setRepoExists(exists);
-      
-      if (!exists) {
-        // Redirect to 404 if repo doesn't exist
+  const setDays = useCallback(
+    (d: number) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("days", d.toString());
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  // Fetch repository info (existence + default branch)
+  const { data: repoInfo, isLoading: repoLoading } = useQuery<RepoInfo | null>({
+    queryKey: ["repoInfo", org, repo],
+    queryFn: async () => {
+      const info = await githubService.getRepoInfo(org!, repo!);
+      if (!info) {
         setTimeout(() => navigate("/404", { replace: true }), 2000);
       }
-    }
+      return info;
+    },
+    enabled: !!org && !!repo,
+  });
 
-    checkRepo();
-  }, [org, repo, navigate]);
+  const {
+    branches,
+    loading: branchesLoading,
+    error: branchesError,
+  } = useBranches(org, repo);
 
-  // Update selected branch when branches are loaded
-  useEffect(() => {
-    if (branches.length > 0 && !branches.find(b => b.name === selectedBranch)) {
-      // If "main" doesn't exist, try "master"
-      const defaultBranch = branches.find(b => b.name === "master") || branches[0];
-      setSelectedBranch(defaultBranch.name);
+  // Derive the effective branch:
+  //  1. URL ?branch= param if present and valid
+  //  2. Repo's default branch from the API
+  //  3. First branch in the list as last resort
+  const effectiveBranch = useMemo(() => {
+    if (branchParam && branches.length > 0) {
+      if (branches.some((b) => b.name === branchParam)) {
+        return branchParam;
+      }
     }
-  }, [branches, selectedBranch]);
+    if (branches.length === 0) return null;
+    if (repoInfo?.defaultBranch) {
+      const defaultMatch = branches.find(
+        (b) => b.name === repoInfo.defaultBranch,
+      );
+      if (defaultMatch) return defaultMatch.name;
+    }
+    return branches[0].name;
+  }, [branchParam, branches, repoInfo]);
+
+  const {
+    data,
+    loading: dataLoading,
+    fetching: dataFetching,
+    error: dataError,
+  } = useArtifacts(org, repo, effectiveBranch, days);
 
   // Calculate stats from latest data point
   const latestData = data.length > 0 ? data[data.length - 1] : null;
   const previousData = data.length > 1 ? data[data.length - 2] : null;
 
-  const getStatTrend = (current: number | undefined, previous: number | undefined) => {
+  const getStatTrend = (
+    current: number | undefined,
+    previous: number | undefined,
+  ) => {
     if (!current || !previous) return undefined;
     const diff = current - previous;
     return diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
   };
 
-  if (repoExists === false) {
+  // Show repo-not-found before redirect
+  if (repoInfo === null && !repoLoading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Repository Not Found</AlertTitle>
@@ -83,27 +130,18 @@ export default function DashboardPage() {
     );
   }
 
-  if (branchesLoading || repoExists === null) {
+  // Full-page skeleton while branches / repo check are loading
+  if (branchesLoading || repoLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <Skeleton className="h-12 w-64 mb-6" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[...Array(2)].map((_, i) => (
-            <Skeleton key={i} className="h-[400px]" />
-          ))}
-        </div>
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <DashboardContentSkeleton />
       </div>
     );
   }
 
   if (branchesError) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Repository</AlertTitle>
@@ -113,38 +151,34 @@ export default function DashboardPage() {
     );
   }
 
+  // Whether we have stale data being shown while a refetch is in progress
+  const showingStaleData = dataFetching && data.length > 0;
+
   return (
-    <div className="container mx-auto p-6">
+    <div className="mx-auto max-w-7xl px-6 py-8">
       {/* Header */}
-      <header className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Activity className="h-8 w-8" />
-            <h1 className="text-3xl font-bold">
-              {org}/{repo}
-            </h1>
+      <header className="mb-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {org}/{repo}
+          </h1>
+          <div className="flex items-center gap-3">
+            <BranchSelector
+              branches={branches}
+              value={effectiveBranch ?? ""}
+              onChange={setBranch}
+            />
+            <TimeRangeFilter value={days} onChange={setDays} />
           </div>
-          <TokenButton />
-        </div>
-        <div className="flex flex-wrap gap-4 mt-4">
-          <BranchSelector
-            branches={branches}
-            value={selectedBranch}
-            onChange={setSelectedBranch}
-          />
-          <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
         </div>
       </header>
 
-      {/* Loading State */}
-      {dataLoading && (
-        <Alert className="mb-6">
-          <Activity className="h-4 w-4 animate-spin" />
-          <AlertTitle>Loading Data</AlertTitle>
-          <AlertDescription>
-            Fetching workflow runs and artifacts...
-          </AlertDescription>
-        </Alert>
+      {/* Subtle refetching indicator -- shown when cached data is visible */}
+      {showingStaleData && (
+        <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <Activity className="h-3.5 w-3.5 animate-spin" />
+          Updating data...
+        </div>
       )}
 
       {/* Error State */}
@@ -152,58 +186,98 @@ export default function DashboardPage() {
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>
-            {dataError}
-            {dataError.includes("401") || dataError.includes("authentication") ? (
-              <span className="block mt-2">
-                Click the "Setup Token" button in the top-right corner to authenticate.
-              </span>
-            ) : null}
-          </AlertDescription>
+          <AlertDescription>{dataError}</AlertDescription>
         </Alert>
       )}
 
-      {/* Empty State */}
-      {!dataLoading && data.length === 0 && (
+      {/* Loading skeleton on first load (no cached data yet) */}
+      {dataLoading && <DashboardContentSkeleton />}
+
+      {/* Empty State (only when not loading and no error) */}
+      {!dataLoading && !dataError && data.length === 0 && (
         <Alert className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
-            No workflow runs with codecov artifacts found for branch "{selectedBranch}" in the selected time range.
-            Make sure the codecov action is set up and has run successfully.
+            No workflow runs with codecov artifacts found for branch "
+            {effectiveBranch}" in the selected time range.
+            {!githubService.hasToken() && (
+              <span className="block mt-2">
+                Downloading artifacts requires authentication. Try adding a
+                GitHub token using the button in the header.
+              </span>
+            )}
+            {githubService.hasToken() && (
+              <span className="block mt-2">
+                Make sure the codecov action is set up and has run successfully
+                on this branch.
+              </span>
+            )}
           </AlertDescription>
         </Alert>
       )}
 
       {/* Stats Overview */}
       {latestData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 transition-opacity duration-200 ${showingStaleData ? "opacity-60" : ""}`}
+        >
           <StatCard
             title="Line Coverage"
-            value={latestData.coverage ? `${latestData.coverage.lineRate.toFixed(1)}%` : "N/A"}
-            trend={getStatTrend(latestData.coverage?.lineRate, previousData?.coverage?.lineRate)}
+            value={
+              latestData.coverage
+                ? `${latestData.coverage.lineRate.toFixed(1)}%`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.coverage?.lineRate,
+              previousData?.coverage?.lineRate,
+            )}
           />
           <StatCard
             title="Branch Coverage"
-            value={latestData.coverage ? `${latestData.coverage.branchRate.toFixed(1)}%` : "N/A"}
-            trend={getStatTrend(latestData.coverage?.branchRate, previousData?.coverage?.branchRate)}
+            value={
+              latestData.coverage
+                ? `${latestData.coverage.branchRate.toFixed(1)}%`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.coverage?.branchRate,
+              previousData?.coverage?.branchRate,
+            )}
           />
           <StatCard
             title="Tests Passed"
-            value={latestData.tests ? `${latestData.tests.passed}/${latestData.tests.total}` : "N/A"}
-            trend={getStatTrend(latestData.tests?.passed, previousData?.tests?.passed)}
+            value={
+              latestData.tests
+                ? `${latestData.tests.passed}/${latestData.tests.total}`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.tests?.passed,
+              previousData?.tests?.passed,
+            )}
           />
           <StatCard
             title="Pass Rate"
-            value={latestData.tests ? `${latestData.tests.passRate.toFixed(1)}%` : "N/A"}
-            trend={getStatTrend(latestData.tests?.passRate, previousData?.tests?.passRate)}
+            value={
+              latestData.tests
+                ? `${latestData.tests.passRate.toFixed(1)}%`
+                : "N/A"
+            }
+            trend={getStatTrend(
+              latestData.tests?.passRate,
+              previousData?.tests?.passRate,
+            )}
           />
         </div>
       )}
 
       {/* Charts */}
       {data.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 transition-opacity duration-200 ${showingStaleData ? "opacity-60" : ""}`}
+        >
           <Card>
             <CardHeader>
               <CardTitle>Coverage Over Time</CardTitle>
@@ -226,16 +300,19 @@ export default function DashboardPage() {
 
       {/* Recent Runs */}
       {data.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Runs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RunsTable data={data} />
-          </CardContent>
-        </Card>
+        <div
+          className={`transition-opacity duration-200 ${showingStaleData ? "opacity-60" : ""}`}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Runs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RunsTable data={data} />
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
 }
-

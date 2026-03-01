@@ -1,9 +1,14 @@
-import { Octokit } from '@octokit/rest';
-import { tokenStorage } from './tokenStorage';
+import { Octokit } from "@octokit/rest";
+import { tokenStorage } from "./tokenStorage";
+
+export interface RepoInfo {
+  exists: true;
+  defaultBranch: string;
+}
 
 class GitHubService {
   private octokit: Octokit;
-  
+
   constructor() {
     const token = tokenStorage.get();
     this.octokit = new Octokit({
@@ -32,17 +37,16 @@ class GitHubService {
     return tokenStorage.exists();
   }
 
-  // Fetch all branches
+  // Fetch all branches (paginated)
   async getBranches(owner: string, repo: string) {
     try {
-      const { data } = await this.octokit.rest.repos.listBranches({
-        owner, 
-        repo, 
-        per_page: 100
-      });
-      return data;
+      const branches = await this.octokit.paginate(
+        this.octokit.rest.repos.listBranches,
+        { owner, repo, per_page: 100 },
+      );
+      return branches;
     } catch (error) {
-      console.error('Error fetching branches:', error);
+      console.error("Error fetching branches:", error);
       throw error;
     }
   }
@@ -51,16 +55,16 @@ class GitHubService {
   async getWorkflowRuns(owner: string, repo: string, branch: string, page = 1) {
     try {
       const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
-        owner, 
-        repo, 
+        owner,
+        repo,
         branch,
-        status: 'success',
+        status: "success",
         per_page: 50,
-        page
+        page,
       });
       return data.workflow_runs;
     } catch (error) {
-      console.error('Error fetching workflow runs:', error);
+      console.error("Error fetching workflow runs:", error);
       throw error;
     }
   }
@@ -68,44 +72,53 @@ class GitHubService {
   // Fetch artifacts for a specific workflow run
   async getRunArtifacts(owner: string, repo: string, runId: number) {
     try {
-      const { data } = await this.octokit.rest.actions.listWorkflowRunArtifacts({
-        owner, 
-        repo, 
-        run_id: runId
-      });
+      const { data } = await this.octokit.rest.actions.listWorkflowRunArtifacts(
+        {
+          owner,
+          repo,
+          run_id: runId,
+          per_page: 100,
+        },
+      );
       return data.artifacts;
     } catch (error) {
-      console.error('Error fetching artifacts:', error);
+      console.error("Error fetching artifacts:", error);
       throw error;
     }
   }
 
   // Download artifact (returns ArrayBuffer)
-  async downloadArtifact(owner: string, repo: string, artifactId: number): Promise<ArrayBuffer> {
+  async downloadArtifact(
+    owner: string,
+    repo: string,
+    artifactId: number,
+  ): Promise<ArrayBuffer> {
     try {
       const { data } = await this.octokit.rest.actions.downloadArtifact({
-        owner, 
-        repo, 
-        artifact_id: artifactId, 
-        archive_format: 'zip'
+        owner,
+        repo,
+        artifact_id: artifactId,
+        archive_format: "zip",
       });
       return data as ArrayBuffer;
     } catch (error) {
-      console.error('Error downloading artifact:', error);
+      console.error("Error downloading artifact:", error);
       throw error;
     }
   }
 
-  // Check if repository exists
-  async checkRepository(owner: string, repo: string): Promise<boolean> {
+  // Get repository info (default branch, existence check)
+  async getRepoInfo(owner: string, repo: string): Promise<RepoInfo | null> {
     try {
-      await this.octokit.rest.repos.get({ owner, repo });
-      return true;
-    } catch (error) {
-      return false;
+      const { data } = await this.octokit.rest.repos.get({ owner, repo });
+      return {
+        exists: true,
+        defaultBranch: data.default_branch,
+      };
+    } catch {
+      return null;
     }
   }
 }
 
 export const githubService = new GitHubService();
-
