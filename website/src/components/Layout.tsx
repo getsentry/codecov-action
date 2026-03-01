@@ -1,4 +1,4 @@
-import { Activity } from "lucide-react";
+import { CircleGauge } from "lucide-react";
 import { Link, Outlet } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
 import { TokenButton } from "./TokenButton";
@@ -13,7 +13,7 @@ export function Layout() {
             to="/"
             className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity"
           >
-            <Activity className="h-5 w-5" />
+            <CircleGauge className="h-5 w-5" />
             <span>Codecov Dashboard</span>
           </Link>
           <div className="flex items-center gap-2">
