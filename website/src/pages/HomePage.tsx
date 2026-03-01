@@ -45,7 +45,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="bg-gradient-to-b from-background to-muted/20">
+    <div>
       <div className="mx-auto max-w-7xl px-6">
         {/* Hero */}
         <div className="py-16 text-center">
