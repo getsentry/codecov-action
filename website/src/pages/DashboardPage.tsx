@@ -162,27 +162,30 @@ export default function DashboardPage() {
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>
-            {dataError}
-            {dataError.includes("401") ||
-            dataError.includes("authentication") ? (
-              <span className="block mt-2">
-                Click the "Setup Token" button in the header to authenticate.
-              </span>
-            ) : null}
-          </AlertDescription>
+          <AlertDescription>{dataError}</AlertDescription>
         </Alert>
       )}
 
       {/* Empty State */}
-      {!dataLoading && data.length === 0 && (
+      {!dataLoading && !dataError && data.length === 0 && (
         <Alert className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
             No workflow runs with codecov artifacts found for branch "
-            {selectedBranch}" in the selected time range. Make sure the codecov
-            action is set up and has run successfully.
+            {selectedBranch}" in the selected time range.
+            {!githubService.hasToken() && (
+              <span className="block mt-2">
+                Downloading artifacts requires authentication. Try adding a
+                GitHub token using the button in the header.
+              </span>
+            )}
+            {githubService.hasToken() && (
+              <span className="block mt-2">
+                Make sure the codecov action is set up and has run successfully
+                on this branch.
+              </span>
+            )}
           </AlertDescription>
         </Alert>
       )}
