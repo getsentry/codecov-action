@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Activity, AlertCircle } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useMemo } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BranchSelector } from "../components/BranchSelector";
@@ -15,11 +15,46 @@ import { useArtifacts } from "../hooks/useArtifacts";
 import { useBranches } from "../hooks/useBranches";
 import { githubService } from "../services/githubAPI";
 
+const VALID_DAYS = new Set([7, 30, 90, 365]);
+const DEFAULT_DAYS = 7;
+
+function parseDays(value: string | null): number {
+  if (!value) return DEFAULT_DAYS;
+  const n = Number.parseInt(value, 10);
+  return VALID_DAYS.has(n) ? n : DEFAULT_DAYS;
+}
+
 export default function DashboardPage() {
   const { org, repo } = useParams<{ org: string; repo: string }>();
   const navigate = useNavigate();
-  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
-  const [days, setDays] = useState(30);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read state from URL search params
+  const branchParam = searchParams.get("branch");
+  const days = parseDays(searchParams.get("days"));
+
+  // Helpers to update URL params without losing the other param
+  const setBranch = useCallback(
+    (branch: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("branch", branch);
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const setDays = useCallback(
+    (d: number) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("days", d.toString());
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
 
   // Check if repository exists
   const { data: repoExists, isLoading: repoLoading } = useQuery({
@@ -40,16 +75,23 @@ export default function DashboardPage() {
     error: branchesError,
   } = useBranches(org, repo);
 
-  // Derive the effective branch: use user selection, or auto-detect from branch list
+  // Derive the effective branch:
+  //  1. URL ?branch= param if present and valid
+  //  2. Auto-detect main > master > first from branch list
   const effectiveBranch = useMemo(() => {
-    if (selectedBranch) return selectedBranch;
+    if (branchParam && branches.length > 0) {
+      // Validate that the branch from the URL actually exists
+      if (branches.some((b) => b.name === branchParam)) {
+        return branchParam;
+      }
+    }
     if (branches.length === 0) return null;
     return (
       branches.find((b) => b.name === "main")?.name ??
       branches.find((b) => b.name === "master")?.name ??
       branches[0].name
     );
-  }, [selectedBranch, branches]);
+  }, [branchParam, branches]);
 
   const {
     data,
@@ -122,7 +164,7 @@ export default function DashboardPage() {
             <BranchSelector
               branches={branches}
               value={effectiveBranch ?? ""}
-              onChange={setSelectedBranch}
+              onChange={setBranch}
             />
             <TimeRangeFilter value={days} onChange={setDays} />
           </div>

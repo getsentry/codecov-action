@@ -38,12 +38,6 @@ export default function HomePage() {
     }
   };
 
-  const exampleRepos = [
-    { owner: "getsentry", repo: "codecov-action" },
-    { owner: "facebook", repo: "react" },
-    { owner: "microsoft", repo: "typescript" },
-  ];
-
   return (
     <div>
       <div className="mx-auto max-w-7xl px-6">
@@ -79,22 +73,6 @@ export default function HomePage() {
                 View
               </Button>
             </form>
-
-            <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2">Examples:</p>
-              <div className="flex flex-wrap gap-2">
-                {exampleRepos.map((repo) => (
-                  <Button
-                    key={`${repo.owner}/${repo.repo}`}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/${repo.owner}/${repo.repo}`)}
-                  >
-                    {repo.owner}/{repo.repo}
-                  </Button>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
 
