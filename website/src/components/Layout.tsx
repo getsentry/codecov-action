@@ -1,5 +1,6 @@
 import { Activity } from "lucide-react";
 import { Link, Outlet } from "react-router-dom";
+import { ThemeToggle } from "./ThemeToggle";
 import { TokenButton } from "./TokenButton";
 
 export function Layout() {
@@ -15,7 +16,10 @@ export function Layout() {
             <Activity className="h-5 w-5" />
             <span>Codecov Dashboard</span>
           </Link>
-          <TokenButton />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <TokenButton />
+          </div>
         </div>
       </header>
 
