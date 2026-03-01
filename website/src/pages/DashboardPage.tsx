@@ -13,7 +13,7 @@ import { TestResultsChart } from "../components/TestResultsChart";
 import { TimeRangeFilter } from "../components/TimeRangeFilter";
 import { useArtifacts } from "../hooks/useArtifacts";
 import { useBranches } from "../hooks/useBranches";
-import { githubService } from "../services/githubAPI";
+import { githubService, type RepoInfo } from "../services/githubAPI";
 
 const VALID_DAYS = new Set([7, 30, 90, 365]);
 const DEFAULT_DAYS = 7;
@@ -56,15 +56,15 @@ export default function DashboardPage() {
     [setSearchParams],
   );
 
-  // Check if repository exists
-  const { data: repoExists, isLoading: repoLoading } = useQuery({
-    queryKey: ["repoExists", org, repo],
+  // Fetch repository info (existence + default branch)
+  const { data: repoInfo, isLoading: repoLoading } = useQuery<RepoInfo | null>({
+    queryKey: ["repoInfo", org, repo],
     queryFn: async () => {
-      const exists = await githubService.checkRepository(org!, repo!);
-      if (!exists) {
+      const info = await githubService.getRepoInfo(org!, repo!);
+      if (!info) {
         setTimeout(() => navigate("/404", { replace: true }), 2000);
       }
-      return exists;
+      return info;
     },
     enabled: !!org && !!repo,
   });
@@ -77,21 +77,23 @@ export default function DashboardPage() {
 
   // Derive the effective branch:
   //  1. URL ?branch= param if present and valid
-  //  2. Auto-detect main > master > first from branch list
+  //  2. Repo's default branch from the API
+  //  3. First branch in the list as last resort
   const effectiveBranch = useMemo(() => {
     if (branchParam && branches.length > 0) {
-      // Validate that the branch from the URL actually exists
       if (branches.some((b) => b.name === branchParam)) {
         return branchParam;
       }
     }
     if (branches.length === 0) return null;
-    return (
-      branches.find((b) => b.name === "main")?.name ??
-      branches.find((b) => b.name === "master")?.name ??
-      branches[0].name
-    );
-  }, [branchParam, branches]);
+    if (repoInfo?.defaultBranch) {
+      const defaultMatch = branches.find(
+        (b) => b.name === repoInfo.defaultBranch,
+      );
+      if (defaultMatch) return defaultMatch.name;
+    }
+    return branches[0].name;
+  }, [branchParam, branches, repoInfo]);
 
   const {
     data,
@@ -114,7 +116,7 @@ export default function DashboardPage() {
   };
 
   // Show repo-not-found before redirect
-  if (repoExists === false) {
+  if (repoInfo === null && !repoLoading) {
     return (
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Alert variant="destructive">

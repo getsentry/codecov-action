@@ -1,6 +1,11 @@
 import { Octokit } from "@octokit/rest";
 import { tokenStorage } from "./tokenStorage";
 
+export interface RepoInfo {
+  exists: true;
+  defaultBranch: string;
+}
+
 class GitHubService {
   private octokit: Octokit;
 
@@ -32,15 +37,14 @@ class GitHubService {
     return tokenStorage.exists();
   }
 
-  // Fetch all branches
+  // Fetch all branches (paginated)
   async getBranches(owner: string, repo: string) {
     try {
-      const { data } = await this.octokit.rest.repos.listBranches({
-        owner,
-        repo,
-        per_page: 100,
-      });
-      return data;
+      const branches = await this.octokit.paginate(
+        this.octokit.rest.repos.listBranches,
+        { owner, repo, per_page: 100 },
+      );
+      return branches;
     } catch (error) {
       console.error("Error fetching branches:", error);
       throw error;
@@ -103,13 +107,16 @@ class GitHubService {
     }
   }
 
-  // Check if repository exists
-  async checkRepository(owner: string, repo: string): Promise<boolean> {
+  // Get repository info (default branch, existence check)
+  async getRepoInfo(owner: string, repo: string): Promise<RepoInfo | null> {
     try {
-      await this.octokit.rest.repos.get({ owner, repo });
-      return true;
-    } catch (error) {
-      return false;
+      const { data } = await this.octokit.rest.repos.get({ owner, repo });
+      return {
+        exists: true,
+        defaultBranch: data.default_branch,
+      };
+    } catch {
+      return null;
     }
   }
 }
