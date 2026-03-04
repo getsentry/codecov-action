@@ -28,7 +28,7 @@
     "react-router-dom": "^7.13.1",
     "recharts": "2.15.4",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
